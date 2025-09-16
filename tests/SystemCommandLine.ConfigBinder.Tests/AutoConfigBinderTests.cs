@@ -156,9 +156,9 @@ public class AutoConfigBinderTests
     public void Helper_IsTrivialReferenceDefault_Works()
     {
         // Assert (pure function tests)
-        Assert.True(AutoConfigBinder<TestConfig>.IsTrivialReferenceDefault(""));
-        Assert.True(AutoConfigBinder<TestConfig>.IsTrivialReferenceDefault(Array.Empty<int>()));
-        Assert.False(AutoConfigBinder<TestConfig>.IsTrivialReferenceDefault("content"));
+        Assert.True(AutoConfigBinder<TestConfig>.OptionFactory.IsTrivialReferenceDefault(""));
+        Assert.True(AutoConfigBinder<TestConfig>.OptionFactory.IsTrivialReferenceDefault(Array.Empty<int>()));
+        Assert.False(AutoConfigBinder<TestConfig>.OptionFactory.IsTrivialReferenceDefault("content"));
     }
 
     [Fact]

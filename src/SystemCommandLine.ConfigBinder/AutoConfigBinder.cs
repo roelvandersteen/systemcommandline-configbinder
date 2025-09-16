@@ -234,16 +234,6 @@ public sealed class AutoConfigBinder<T> where T : new()
         return sb.ToString();
     }
 
-    internal static bool IsDefaultStructValue(object value, Type type)
-    {
-        return type.IsValueType && Equals(value, Activator.CreateInstance(type));
-    }
-
-    internal static bool IsTrivialReferenceDefault(object value)
-    {
-        return value switch { string s => string.IsNullOrEmpty(s), Array a => a.Length == 0, _ => false };
-    }
-
     private static MethodInfo ResolveParseResultGetValueDefinition()
     {
         return typeof(ParseResult).GetMethods(BindingFlags.Instance | BindingFlags.Public)
@@ -300,6 +290,16 @@ public sealed class AutoConfigBinder<T> where T : new()
         {
             option.Description = property.GetCustomAttribute<DisplayAttribute>()?.Description ?? $"Sets the {property.Name} value";
             option.Required = property.GetCustomAttribute<RequiredAttribute>() != null;
+        }
+
+        internal static bool IsDefaultStructValue(object value, Type type)
+        {
+            return type.IsValueType && Equals(value, Activator.CreateInstance(type));
+        }
+
+        internal static bool IsTrivialReferenceDefault(object value)
+        {
+            return value switch { string s => string.IsNullOrEmpty(s), Array a => a.Length == 0, _ => false };
         }
 
         private static void TryApplyDefault(PropertyInfo property, Type propertyType, Option option, object? defaultValue)
