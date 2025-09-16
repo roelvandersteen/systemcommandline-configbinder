@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+    steps:
+      - name: Enable NuGet cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for MinVer & SonarCloud accurate blame/coverage
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: | 
+            8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test (OpenCover + TRX)
+        run: >
+          dotnet test --no-build --configuration Release \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=opencover \
+            /p:CoverletOutput="$(pwd)/test-results/" \
+            --logger trx \
+            --results-directory test-results
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Convert coverage to lcov
+        if: always()
+        run: |
+          dotnet tool run reportgenerator -reports:"test-results/coverage.opencover.xml" -targetdir:"coverage-report" -reporttypes:"lcov;Cobertura"
+          echo "Generated lcov at coverage-report/lcov.info"
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage-report/lcov.info
+            test-results/coverage.opencover.xml
+            test-results/coverage.cobertura.xml
+            test-results/*.trx
+          if-no-files-found: warn
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # for PR decoration
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >-
+            -Dsonar.projectKey=roelvandersteen_systemcommandline-configbinder
+            -Dsonar.organization=roelvandersteen
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.cs.opencover.reportsPaths=test-results/coverage.opencover.xml
+            -Dsonar.coverage.exclusions=**/samples/**,**/tests/**
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.verbose=true
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "CI pipeline completed."

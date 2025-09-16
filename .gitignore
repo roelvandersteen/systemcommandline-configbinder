@@ -242,3 +242,7 @@ ModelManifest.xml
 .fake/
 
 **/launchSettings.json
+
+# Coverage & test result artifacts
+coverage-report/
+test-results/

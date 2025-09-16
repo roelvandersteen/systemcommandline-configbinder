@@ -1,0 +1,62 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  pack-and-publish:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # MinVer needs tags
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release
+
+      - name: Pack
+        run: dotnet pack src/SystemCommandLine.ConfigBinder/SystemCommandLine.ConfigBinder.csproj -c Release -o artifacts --no-build
+
+      - name: Publish NuGet
+        if: success()
+        env:
+            NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then echo "NUGET_API_KEY secret missing" && exit 1; fi
+          for pkg in artifacts/*.nupkg; do
+            echo "Publishing $pkg";
+            dotnet nuget push "$pkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate;
+          done
+          for snupkg in artifacts/*.snupkg 2>/dev/null; do
+            echo "Publishing symbols $snupkg";
+            dotnet nuget push "$snupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate || true;
+          done
+
+      - name: Release notes draft
+        if: success()
+        run: |
+          echo "Packages in artifacts/:";
+          ls -1 artifacts || true
+          echo "Remember to create a GitHub Release if desired."

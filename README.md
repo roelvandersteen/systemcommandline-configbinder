@@ -1,5 +1,9 @@
 # SystemCommandLine.ConfigBinder
 
+![CI](https://github.com/roelvandersteen/systemcommandline-configbinder/actions/workflows/ci.yml/badge.svg)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=roelvandersteen_systemcommandline-configbinder&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=roelvandersteen_systemcommandline-configbinder)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=roelvandersteen_systemcommandline-configbinder&metric=coverage)](https://sonarcloud.io/summary/new_code?id=your_org_systemcommandline-configbinder)
+
 Reflection-based automatic configuration binder for `System.CommandLine` (v2) with automatic option generation + binding.
 
 > SPDX-License-Identifier: MIT-0
@@ -179,11 +183,6 @@ Create a local package:
 ```pwsh
 dotnet pack src/SystemCommandLine.ConfigBinder/SystemCommandLine.ConfigBinder.csproj -c Release
 ```
-
-## Roadmap / Ideas
-
-- Publish to NuGet with CI (GitHub Actions)
-- Additional unit tests (edge cases, enum help text)
 
 ## Contributing
 
