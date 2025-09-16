@@ -43,11 +43,20 @@ tests/                        # Unit tests (xUnit)
 
 ## Installation
 
-NuGet package (pending publish):
+### GitHub Packages
 
 ```xml
-<PackageReference Include="SystemCommandLine.ConfigBinder" Version="0.*" />
+<PackageReference Include="SystemCommandLine.ConfigBinder" Version="0.1.*" />
 ```
+
+Add the package source:
+
+```pwsh
+dotnet nuget add source https://nuget.pkg.github.com/roelvandersteen/index.json --name "GitHubPackages"
+dotnet add package SystemCommandLine.ConfigBinder --source "GitHubPackages"
+```
+
+### Local Development
 
 Until published you can:
 
