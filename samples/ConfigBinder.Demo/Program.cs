@@ -25,13 +25,13 @@ rootCommand.SetAction(async (parseResult, cancellationToken) =>
     catch (ValidationException ex)
     {
         var sb = new StringBuilder("Validation error: ").AppendLine(ex.Message).Append("Use --help to see valid ranges and options.");
-        await Console.Error.WriteLineAsync(sb);
+        await Console.Error.WriteLineAsync(sb, cancellationToken);
         return 2;
     }
     catch (Exception ex)
     {
         var sb = new StringBuilder("An error occurred during processing: ").Append(ex.Message);
-        await Console.Error.WriteLineAsync(sb);
+        await Console.Error.WriteLineAsync(sb, cancellationToken);
         return 1;
     }
 });
