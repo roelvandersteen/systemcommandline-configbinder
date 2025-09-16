@@ -52,6 +52,8 @@ public class AutoConfigBinderTests
         Assert.Contains(root.Options, o => o.Name == "--no-diagnostics");
     }
 
+    private static readonly string[] expected = ["a", "b"];
+
     [Fact]
     public void Binding_Works_ForBasicValues()
     {
@@ -67,7 +69,7 @@ public class AutoConfigBinderTests
         // Assert
         Assert.Equal("https://e/", config.Endpoint);
         Assert.Equal(4, config.Retries);
-        Assert.Equal(new[] { "a", "b" }, config.Names);
+        Assert.Equal(expected, config.Names);
         Assert.IsType<bool>(config.Diagnostics);
     }
 
