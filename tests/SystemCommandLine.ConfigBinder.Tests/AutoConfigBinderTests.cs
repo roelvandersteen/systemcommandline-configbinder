@@ -167,4 +167,152 @@ public class AutoConfigBinderTests
         // Assert (pure function)
         Assert.Equal("--some-property", AutoConfigBinder<TestConfig>.GetOptionName("SomeProperty"));
     }
+
+    [Fact]
+    public void Binding_HandlesNullableProperties()
+    {
+        // Arrange
+        var binder = new AutoConfigBinder<TestConfig>();
+        var root = new RootCommand();
+        binder.AddOptionsTo(root);
+
+        // Act
+        var result = root.Parse("--endpoint x --optional-number 42");
+        var config = binder.Get(result);
+
+        // Assert
+        Assert.Equal(42, config.OptionalNumber);
+        Assert.Null(config.OptionalText); // not provided
+    }
+
+    [Fact]
+    public void EmptyArrays_AreHandledCorrectly()
+    {
+        // Arrange
+        var binder = new AutoConfigBinder<TestConfig>();
+        var root = new RootCommand();
+        binder.AddOptionsTo(root);
+
+        // Act
+        var result = root.Parse("--endpoint x");
+        var config = binder.Get(result);
+
+        // Assert
+        Assert.Empty(config.Names);
+    }
+
+    [Fact]
+    public void MultipleValidationErrors_AreAggregated()
+    {
+        // Arrange
+        var binder = new AutoConfigBinder<TestConfig>();
+        var root = new RootCommand();
+        binder.AddOptionsTo(root);
+
+        // Act
+        var result = root.Parse("--endpoint x --retries 10"); // endpoint "x" is valid, only retries out of range
+        var ex = Assert.Throws<ValidationException>(() => binder.Get(result));
+
+        // Assert
+        Assert.Contains("Validation failed", ex.Message);
+        Assert.Contains("Retries", ex.Message);
+    }
+
+    [Fact]
+    public void IsDefaultStructValue_Works()
+    {
+        // Assert (testing internal helper)
+        Assert.True(AutoConfigBinder<TestConfig>.OptionFactory.IsDefaultStructValue(0, typeof(int)));
+        Assert.True(AutoConfigBinder<TestConfig>.OptionFactory.IsDefaultStructValue(false, typeof(bool)));
+        Assert.False(AutoConfigBinder<TestConfig>.OptionFactory.IsDefaultStructValue(1, typeof(int)));
+        Assert.False(AutoConfigBinder<TestConfig>.OptionFactory.IsDefaultStructValue(true, typeof(bool)));
+    }
+
+    [Fact]
+    public void BooleanProperty_WithDefaultFalse_DoesNotGenerateInverse()
+    {
+        // Arrange
+        var binder = new AutoConfigBinder<BoolDefaultFalseConfig>();
+        var root = new RootCommand();
+        binder.AddOptionsTo(root);
+
+        // Act & Assert
+        Assert.Contains(root.Options, o => o.Name == "--flag");
+        Assert.DoesNotContain(root.Options, o => o.Name == "--no-flag");
+    }
+
+    [Fact]
+    public void ComplexPropertyNames_AreKebabCased()
+    {
+        // Arrange
+        var binder = new AutoConfigBinder<ComplexNamingConfig>();
+        var root = new RootCommand();
+        binder.AddOptionsTo(root);
+
+        // Act & Assert
+        Assert.Contains(root.Options, o => o.Name == "--max-retry-count");
+        Assert.Contains(root.Options, o => o.Name == "--api-endpoint-url");
+        Assert.Contains(root.Options, o => o.Name == "--use-https");
+    }
+
+    private sealed class BoolDefaultFalseConfig
+    {
+        public bool Flag { get; set; } = false; // Should NOT generate --no-flag
+    }
+
+    private sealed class ComplexNamingConfig
+    {
+        public int MaxRetryCount { get; set; }
+        public string ApiEndpointUrl { get; set; } = "";
+        public bool UseHTTPS { get; set; }
+    }
+
+    private sealed class ValidationTestConfig
+    {
+        [Required]
+        [MinLength(3)]
+        [MaxLength(10)]
+        public string Name { get; set; } = "";
+
+        [Range(1, 100)]
+        public int Age { get; set; }
+    }
+
+    [Fact]
+    public void MultipleValidationAttributes_AreAllChecked()
+    {
+        // Arrange
+        var binder = new AutoConfigBinder<ValidationTestConfig>();
+        var root = new RootCommand();
+        binder.AddOptionsTo(root);
+
+        // Act - test too short name
+        var result1 = root.Parse("--name ab --age 50");
+        var ex1 = Assert.Throws<ValidationException>(() => binder.Get(result1));
+
+        // Act - test too long name
+        var result2 = root.Parse("--name verylongname --age 50");
+        var ex2 = Assert.Throws<ValidationException>(() => binder.Get(result2));
+
+        // Assert
+        Assert.Contains("Name", ex1.Message);
+        Assert.Contains("Name", ex2.Message);
+    }
+
+    [Fact]
+    public void ValidInput_PassesAllValidation()
+    {
+        // Arrange
+        var binder = new AutoConfigBinder<ValidationTestConfig>();
+        var root = new RootCommand();
+        binder.AddOptionsTo(root);
+
+        // Act
+        var result = root.Parse("--name John --age 25");
+        var config = binder.Get(result);
+
+        // Assert
+        Assert.Equal("John", config.Name);
+        Assert.Equal(25, config.Age);
+    }
 }
