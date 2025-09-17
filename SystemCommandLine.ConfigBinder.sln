@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigBinder.Samples.Tests"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SystemCommandLine.ConfigBinder.Tests", "tests\SystemCommandLine.ConfigBinder.Tests\SystemCommandLine.ConfigBinder.Tests.csproj", "{F62383BC-19A3-417C-968A-33EA2FDD27BB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SystemCommandLine.ConfigBinder.NetStandard2.Tests", "tests\SystemCommandLine.ConfigBinder.NetStandard2.Tests\SystemCommandLine.ConfigBinder.NetStandard2.Tests.csproj", "{DAC0CACC-5982-414E-B403-96509015FA40}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +53,10 @@ Global
 		{F62383BC-19A3-417C-968A-33EA2FDD27BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F62383BC-19A3-417C-968A-33EA2FDD27BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F62383BC-19A3-417C-968A-33EA2FDD27BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DAC0CACC-5982-414E-B403-96509015FA40}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DAC0CACC-5982-414E-B403-96509015FA40}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DAC0CACC-5982-414E-B403-96509015FA40}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DAC0CACC-5982-414E-B403-96509015FA40}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -62,6 +68,7 @@ Global
 		{57D9D2A8-9652-4905-AAE2-F18D0F69DC98} = {B381047D-0EC4-4CC4-8416-896374C7D409}
 		{54E13C13-B0C6-4027-8DA0-E652A10D6207} = {1A305366-CB87-4966-AA24-822B10D33A2F}
 		{F62383BC-19A3-417C-968A-33EA2FDD27BB} = {1A305366-CB87-4966-AA24-822B10D33A2F}
+		{DAC0CACC-5982-414E-B403-96509015FA40} = {1A305366-CB87-4966-AA24-822B10D33A2F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {947B49AA-7C2B-490E-A552-45FE237D20BA}
