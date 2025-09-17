@@ -167,7 +167,7 @@ public class AutoConfigBinderTests
     public void GetOptionName_KebabCases()
     {
         // Assert (pure function)
-        Assert.Equal("--some-property", AutoConfigBinder<TestConfig>.GetOptionName("SomeProperty"));
+        Assert.Equal("--some-property", AutoConfigBinder<TestConfig>.OptionFactory.GetOptionName("SomeProperty"));
     }
 
     [Fact]

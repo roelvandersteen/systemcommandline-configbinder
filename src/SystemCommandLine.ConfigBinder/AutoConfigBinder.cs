@@ -74,7 +74,9 @@ namespace SystemCommandLine.ConfigBinder;
 public sealed class AutoConfigBinder<T> where T : new()
 {
     private readonly List<BoundProperty> _boundProperties = [];
+#pragma warning disable S1450 // Remove field and declare it as a local variable
     private T? _defaultInstance;
+#pragma warning restore S1450
     private bool _isInitialized;
 
     /// <summary>
@@ -205,42 +207,6 @@ public sealed class AutoConfigBinder<T> where T : new()
         return Expression.Lambda<Func<ParseResult, object?>>(boxed, prParam).Compile();
     }
 
-    private static Delegate GenerateDefaultValueLambda(PropertyInfo property, object defaultValue)
-    {
-        var funcType = typeof(Func<,>).MakeGenericType(typeof(ArgumentResult), property.PropertyType);
-        var param = Expression.Parameter(typeof(ArgumentResult), "_");
-        var constant = Expression.Constant(defaultValue, property.PropertyType);
-        return Expression.Lambda(funcType, constant, param).Compile();
-    }
-
-    /// <summary>
-    /// Converts a property name to a kebab-case option name prefixed with two dashes.
-    /// </summary>
-    /// <param name="propertyName">The name of the property to convert.</param>
-    /// <returns>
-    /// A kebab-case string prefixed with "--" that represents the option name.
-    /// If <paramref name="propertyName"/> is <c>null</c> or empty, the same value is returned.
-    /// </returns>
-    internal static string GetOptionName(string propertyName)
-    {
-        if (string.IsNullOrEmpty(propertyName))
-        {
-            return propertyName;
-        }
-
-        var sb = new StringBuilder("--");
-        for (var i = 0; i < propertyName.Length; i++)
-        {
-            if (i > 0 && char.IsUpper(propertyName[i]) && char.IsLower(propertyName[i - 1]))
-            {
-                sb.Append('-');
-            }
-
-            sb.Append(char.ToLowerInvariant(propertyName[i]));
-        }
-
-        return sb.ToString();
-    }
 
     private static MethodInfo ResolveParseResultGetValueDefinition()
     {
@@ -298,6 +264,43 @@ public sealed class AutoConfigBinder<T> where T : new()
         {
             option.Description = property.GetCustomAttribute<DisplayAttribute>()?.Description ?? $"Sets the {property.Name} value";
             option.Required = property.GetCustomAttribute<RequiredAttribute>() != null;
+        }
+
+        /// <summary>
+        /// Converts a property name to a kebab-case option name prefixed with two dashes.
+        /// </summary>
+        /// <param name="propertyName">The name of the property to convert.</param>
+        /// <returns>
+        /// A kebab-case string prefixed with "--" that represents the option name.
+        /// If <paramref name="propertyName"/> is <c>null</c> or empty, the same value is returned.
+        /// </returns>
+        internal static string GetOptionName(string propertyName)
+        {
+            if (string.IsNullOrEmpty(propertyName))
+            {
+                return propertyName;
+            }
+
+            var sb = new StringBuilder("--");
+            for (var i = 0; i < propertyName.Length; i++)
+            {
+                if (i > 0 && char.IsUpper(propertyName[i]) && char.IsLower(propertyName[i - 1]))
+                {
+                    sb.Append('-');
+                }
+
+                sb.Append(char.ToLowerInvariant(propertyName[i]));
+            }
+
+            return sb.ToString();
+        }
+
+        private static Delegate GenerateDefaultValueLambda(PropertyInfo property, object defaultValue)
+        {
+            var funcType = typeof(Func<,>).MakeGenericType(typeof(ArgumentResult), property.PropertyType);
+            var param = Expression.Parameter(typeof(ArgumentResult), "_");
+            var constant = Expression.Constant(defaultValue, property.PropertyType);
+            return Expression.Lambda(funcType, constant, param).Compile();
         }
 
         internal static bool IsDefaultStructValue(object value, Type type)
