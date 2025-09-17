@@ -42,23 +42,24 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Test (OpenCover + TRX)
+      - name: Test (Coverage + TRX)
         run: >
           dotnet test --no-build --configuration Release \
-            /p:CollectCoverage=true \
-            /p:CoverletOutputFormat=opencover \
-            /p:CoverletOutput="$(pwd)/test-results/" \
+            --collect:"XPlat Code Coverage" \
             --logger trx \
             --results-directory test-results
 
       - name: Restore tools
         run: dotnet tool restore
 
-      - name: Convert coverage to lcov
+      - name: Convert coverage to multiple formats
         if: always()
         run: |
-          dotnet tool run reportgenerator -reports:"test-results/coverage.opencover.xml" -targetdir:"coverage-report" -reporttypes:"lcov;Cobertura"
-          echo "Generated lcov at coverage-report/lcov.info"
+          dotnet tool run reportgenerator \
+            -reports:"test-results/**/coverage.cobertura.xml" \
+            -targetdir:"coverage-report" \
+            -reporttypes:"lcov;Cobertura"
+          echo "Generated coverage reports in coverage-report/"
 
       - name: Upload coverage artifacts
         if: always()
@@ -67,8 +68,8 @@ jobs:
           name: coverage
           path: |
             coverage-report/lcov.info
-            test-results/coverage.opencover.xml
-            test-results/coverage.cobertura.xml
+            coverage-report/Cobertura.xml
+            test-results/**/coverage.cobertura.xml
             test-results/*.trx
           if-no-files-found: warn
 
@@ -82,7 +83,7 @@ jobs:
             -Dsonar.projectKey=roelvandersteen_systemcommandline-configbinder
             -Dsonar.organization=roelvandersteen
             -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.cs.opencover.reportsPaths=test-results/coverage.opencover.xml
+            -Dsonar.cs.vscoveragexml.reportsPaths=test-results/**/coverage.cobertura.xml
             -Dsonar.coverage.exclusions=**/samples/**,**/tests/**
             -Dsonar.sources=src
             -Dsonar.tests=tests
