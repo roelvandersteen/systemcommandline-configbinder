@@ -27,23 +27,35 @@ public class GenerationSnapshotTests
 
     private static Assembly LoadGeneratorAssembly()
     {
-        var projectRoot = TestContext.ProjectRoot;
-        var generatorPath = Path.GetFullPath(Path.Combine(projectRoot,
-            "..",
-            "..",
-            "src",
-            "SystemCommandLine.ConfigBinder.Generators",
-            "bin",
-            "Debug",
-            "netstandard2.0",
-            "SystemCommandLine.ConfigBinder.Generators.dll"));
+        const string assemblyName = "SystemCommandLine.ConfigBinder.Generators";
+        const string assemblyFileName = $"{assemblyName}.dll";
+        Assembly? loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == assemblyName);
 
-        if (!File.Exists(generatorPath))
+        if (loadedAssembly != null)
         {
-            Assert.Fail($"Generator assembly not found at: {generatorPath}");
+            return loadedAssembly;
         }
 
-        return Assembly.Load(AssemblyName.GetAssemblyName(generatorPath).FullName);
+        var projectRoot = TestContext.ProjectRoot;
+        var binPath = Path.Combine(projectRoot, "..", "..", "src", assemblyName, "bin");
+        var possiblePaths = new[]
+        {
+            Path.GetFullPath(Path.Combine(binPath, "Debug", "netstandard2.0", assemblyFileName)),
+            Path.GetFullPath(Path.Combine(binPath, "Release", "netstandard2.0", assemblyFileName)),
+            Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty, assemblyFileName)
+        };
+
+        foreach (var path in possiblePaths)
+        {
+            if (File.Exists(path))
+            {
+                return Assembly.Load(Path.GetFileNameWithoutExtension(path));
+            }
+        }
+
+        var searchedPaths = string.Join("\n  ", possiblePaths);
+        Assert.Fail($"Generator assembly not found. Searched:\n  {searchedPaths}");
+        throw new InvalidOperationException("Generator assembly not found.");
     }
 
     internal static class TestContext
