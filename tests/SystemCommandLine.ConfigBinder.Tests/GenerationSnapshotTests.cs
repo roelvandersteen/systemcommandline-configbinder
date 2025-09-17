@@ -139,9 +139,9 @@ public class GenerationSnapshotTests
         return;
 
         // Normalize line endings and trim whitespace lines
-        string Normalize(string s)
+        static string Normalize(string s)
         {
-            return string.Join("\n", s.Replace("\r", "\n").Split('\n').Select(l => l.TrimEnd()));
+            return string.Join("\n", s.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n').Select(l => l.TrimEnd()));
         }
     }
 }
