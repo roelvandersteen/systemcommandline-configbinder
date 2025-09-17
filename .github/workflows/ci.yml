@@ -42,24 +42,22 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Test (Coverage + TRX)
-        run: >
-          dotnet test --no-build --configuration Release \
-            --collect:"XPlat Code Coverage" \
-            --logger trx \
-            --results-directory test-results
+      - name: Test
+        run: dotnet test --no-build --configuration Release
 
       - name: Restore tools
         run: dotnet tool restore
 
-      - name: Convert coverage to multiple formats
-        if: always()
+      - name: SonarCloud Scan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # for PR decoration
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          dotnet tool run reportgenerator \
-            -reports:"test-results/**/coverage.cobertura.xml" \
-            -targetdir:"coverage-report" \
-            -reporttypes:"lcov;Cobertura"
-          echo "Generated coverage reports in coverage-report/"
+          dotnet clean
+          dotnet sonarscanner begin /k:"roelvandersteen_systemcommandline-configbinder" /o:"roelvandersteen" /d:sonar.token="$SONAR_TOKEN" /d:sonar.cs.vscoveragexml.reportsPaths="coverage.xml"
+          dotnet build --no-incremental
+          dotnet dotnet-coverage collect "dotnet test --no-build" -f xml -o "coverage.xml"
+          dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
       - name: Upload coverage artifacts
         if: always()
@@ -67,27 +65,9 @@ jobs:
         with:
           name: coverage
           path: |
-            coverage-report/lcov.info
-            coverage-report/Cobertura.xml
-            test-results/**/coverage.cobertura.xml
-            test-results/*.trx
+            coverage.xml
+            TestResults/*.trx
           if-no-files-found: warn
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # for PR decoration
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >-
-            -Dsonar.projectKey=roelvandersteen_systemcommandline-configbinder
-            -Dsonar.organization=roelvandersteen
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.cs.vscoveragexml.reportsPaths=test-results/**/coverage.cobertura.xml
-            -Dsonar.coverage.exclusions=**/samples/**,**/tests/**
-            -Dsonar.sources=src
-            -Dsonar.tests=tests
-            -Dsonar.verbose=true
 
       - name: Summary
         if: success()

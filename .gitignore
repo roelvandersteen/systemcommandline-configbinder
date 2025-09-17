@@ -244,5 +244,7 @@ ModelManifest.xml
 **/launchSettings.json
 
 # Coverage & test result artifacts
+.sonarqube/
 coverage-report/
 test-results/
+coverage.xml
