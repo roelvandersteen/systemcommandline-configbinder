@@ -7,7 +7,7 @@ namespace ConfigBinder.Demo;
 ///     Configuration class that contains all command line parameters.
 ///     Properties in this class are automatically converted to command line options.
 /// </summary>
-public class AppConfig
+public sealed class AppConfig
 {
     [Required][Display(Description = "The Cosmos DB endpoint.")] public string Endpoint { get; set; } = string.Empty;
 

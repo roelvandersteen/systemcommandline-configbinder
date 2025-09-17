@@ -66,4 +66,9 @@
     <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
   </ItemGroup>
 
+  <!-- Include source generator as analyzer so it ships with the NuGet package -->
+  <ItemGroup>
+    <ProjectReference Include="..\SystemCommandLine.ConfigBinder.Generators\SystemCommandLine.ConfigBinder.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
 </Project>

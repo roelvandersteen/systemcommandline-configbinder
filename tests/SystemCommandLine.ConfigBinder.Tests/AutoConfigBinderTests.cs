@@ -16,9 +16,11 @@ public class AutoConfigBinderTests
 
         [Range(1, 5)] public int Retries { get; set; } = 3;
 
+#pragma warning disable S1144,S3459 // Allow auto-properties with initializers for testing purposes
         public string? OptionalText { get; set; }
 
         public int? OptionalNumber { get; set; }
+#pragma warning restore S1144,S3459
 
         [Display(Description = "Names list")] public string[] Names { get; set; } = [];
     }
@@ -262,9 +264,15 @@ public class AutoConfigBinderTests
 
     private sealed class ComplexNamingConfig
     {
+#pragma warning disable S1144,S3459 // Allow auto-properties with initializers for testing purposes
         public int MaxRetryCount { get; set; }
+#pragma warning restore S1144,S3459 // Allow auto-properties with initializers for testing purposes
+
         public string ApiEndpointUrl { get; set; } = "";
+
+#pragma warning disable S1144,S3459 // Allow auto-properties with initializers for testing purposes
         public bool UseHTTPS { get; set; }
+#pragma warning restore S1144,S3459 // Allow auto-properties with initializers for testing purposes
     }
 
     private sealed class ValidationTestConfig

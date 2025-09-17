@@ -213,6 +213,14 @@ public sealed class AutoConfigBinder<T> where T : new()
         return Expression.Lambda(funcType, constant, param).Compile();
     }
 
+    /// <summary>
+    /// Converts a property name to a kebab-case option name prefixed with two dashes.
+    /// </summary>
+    /// <param name="propertyName">The name of the property to convert.</param>
+    /// <returns>
+    /// A kebab-case string prefixed with "--" that represents the option name.
+    /// If <paramref name="propertyName"/> is <c>null</c> or empty, the same value is returned.
+    /// </returns>
     internal static string GetOptionName(string propertyName)
     {
         if (string.IsNullOrEmpty(propertyName))

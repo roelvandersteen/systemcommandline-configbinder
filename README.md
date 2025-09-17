@@ -4,20 +4,20 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=roelvandersteen_systemcommandline-configbinder&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=roelvandersteen_systemcommandline-configbinder)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=roelvandersteen_systemcommandline-configbinder&metric=coverage)](https://sonarcloud.io/summary/new_code?id=your_org_systemcommandline-configbinder)
 
-Reflection-based automatic configuration binder for `System.CommandLine` (v2) with automatic option generation + binding.
+Automatic configuration binding for `System.CommandLine` (v2) with two approaches: **compile-time source generation** (recommended) and runtime reflection.
 
 > SPDX-License-Identifier: MIT-0
 
-Point a configuration/options POCO at a `RootCommand` (or any `Command`) and the binder will:
+Point a configuration/options POCO at a `RootCommand` (or any `Command`) and get:
 
-- Generate options (kebab-case from property names: `MaxRetries` → `--max-retries`)
-- Add an inverse `--no-<flag>` for boolean properties whose default value is `true` (e.g. `DryRun = true` → `--no-dry-run`)
-- Apply non-trivial default values via `Option<T>.DefaultValueFactory`
-- Support arrays / repeated options (e.g. `string[]`, `int[]` via repeated occurrences)
-- Bind parsed values back into a strongly-typed instance
-- Run DataAnnotations validation (e.g. `[Required]`, `[Range]`) after parse
-- Perform only one reflection pass; subsequent executions are delegate-based
-- Synthesize inverse boolean flags only when they add real value
+- ✨ **Source generation**: Compile-time code generation with zero runtime reflection
+- 🔄 **Runtime binding**: Traditional reflection-based approach for dynamic scenarios
+- 🔗 **Automatic option generation**: kebab-case from property names (`MaxRetries` → `--max-retries`)
+- 🚫 **Inverse boolean options**: `--no-<flag>` for boolean properties with `true` defaults
+- 📋 **Default value handling**: Non-trivial defaults via `Option<T>.DefaultValueFactory`
+- 📝 **Array support**: Repeated options (e.g. `string[]`, `int[]`)
+- ✅ **DataAnnotations validation**: `[Required]`, `[Range]`, etc.
+- ⚡ **High performance**: Compile-time generation or one-time reflection with delegate caching
 
 ## Supported Frameworks
 
@@ -34,9 +34,11 @@ Minimal API surface; no conditional features are currently framework-specific.
 
 ```text
 src/                          # Library source
-  SystemCommandLine.ConfigBinder/
+  SystemCommandLine.ConfigBinder/           # Core library and attributes
+  SystemCommandLine.ConfigBinder.Generators/ # C# source generators
 samples/                      # Demonstrations
-  ConfigBinder.Demo/
+  ConfigBinder.Demo/                        # Reflection-based example
+  ConfigBinder.CodeGeneration/              # Source generation example
 tests/                        # Unit tests (xUnit)
   SystemCommandLine.ConfigBinder.Tests/
 ```
@@ -77,22 +79,78 @@ While `< 1.0.0` breaking changes may occur; they will be documented in release n
 
 ## Quick Start
 
+### 🌟 Approach 1: Source Generation (Recommended)
+
+The modern approach using compile-time code generation for zero runtime overhead:
+
 ```csharp
 using System.CommandLine;
-using ConfigBinder.Demo;
+using SystemCommandLine.ConfigBinder;
+
+// 1. Define your configuration class
+public class AppConfig
+{
+    [Required]
+    [Display(Description = "The service endpoint.")]
+    public string Endpoint { get; set; } = string.Empty;
+
+    [Display(Description = "Enable diagnostics.")]
+    public bool Diagnostics { get; set; } = true; // yields --no-diagnostics
+
+    [Range(1, 10)]
+    [Display(Description = "Retry attempts.")]
+    public int Retries { get; set; } = 3;
+}
+
+// 2. Create a partial class with the attribute
+[CommandLineOptionsFor(typeof(AppConfig))]
+public partial class AppConfigOptions { }
+
+// 3. Use the generated code
+var root = new RootCommand("Sample tool");
+AppConfigOptions.AddOptionsTo(root);
+
+root.SetAction(async (parseResult, cancellationToken) =>
+{
+    AppConfig config = AppConfigOptions.Get(parseResult);
+    await Console.Out.WriteLineAsync($"Endpoint: {config.Endpoint}, Retries: {config.Retries}");
+    return 0;
+});
+
+return await root.Parse(args).InvokeAsync();
+```
+
+**What gets generated:**
+
+- `AppConfigOptions.EndpointOption` - a `System.CommandLine.Option<string>`
+- `AppConfigOptions.DiagnosticsOption` - a `System.CommandLine.Option<bool>`
+- `AppConfigOptions.RetriesOption` - a `System.CommandLine.Option<int>`
+- `AppConfigOptions.AddOptionsTo(Command)` - adds all options to a command
+- `AppConfigOptions.Get(ParseResult)` - creates and populates an `AppConfig` instance
+
+### 🔄 Approach 2: Runtime Reflection
+
+The traditional approach for dynamic scenarios or when source generation isn't suitable:
+
+```csharp
+using System.CommandLine;
 using SystemCommandLine.ConfigBinder;
 
 var binder = new AutoConfigBinder<AppConfig>();
 var root = new RootCommand("Sample tool");
 binder.AddOptionsTo(root);
+
 root.SetAction(async (parseResult, cancellationToken) =>
 {
     var config = binder.Get(parseResult);
     await Console.Out.WriteLineAsync($"Retries: {config.Retries}");
-    return await Task.FromResult(0);
+    return 0;
 });
+
 return await root.Parse(args).InvokeAsync();
 ```
+
+## Configuration Class Example
 
 ```csharp
 public class AppConfig
@@ -160,8 +218,16 @@ The `netstandard2.0` build uses older language constructs (no record structs / r
 
 ## Sample Demo
 
+The repository includes examples for both approaches:
+
+- `samples/ConfigBinder.CodeGeneration/` - source generation approach
+- `samples/ConfigBinder.Demo/` - runtime reflection approach
+
 ```pwsh
-# From repository root
+# Source generation demo
+dotnet run --project samples/ConfigBinder.CodeGeneration -- --endpoint https://example/ --retries 5
+
+# Reflection demo
 dotnet run --project samples/ConfigBinder.Demo -- --endpoint https://example/ --retries 5 --names a --names b
 ```
 
@@ -171,12 +237,19 @@ Everything after `--` is forwarded to the application.
 
 The test project (`tests/SystemCommandLine.ConfigBinder.Tests`) covers:
 
+- Source generator functionality and code generation
 - Option name generation (kebab-case)
 - Inverse boolean option creation (`--no-*`)
 - Binding arrays & primitives
 - Default value heuristics (non-trivial vs trivial)
 - Validation failure surface (`[Range]`, `[Required]`)
 - Helper methods exposed as `internal` for focused unit tests
+
+To run tests:
+
+```pwsh
+dotnet test
+```
 
 ## Development
 
