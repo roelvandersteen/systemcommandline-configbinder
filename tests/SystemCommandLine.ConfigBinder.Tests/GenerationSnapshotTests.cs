@@ -76,7 +76,7 @@ public class GenerationSnapshotTests
 
     private static CSharpCompilation SetupCSharpCompilation()
     {
-        var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp12);
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
         SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(Source, parseOptions);
 
         // Collect a broad set of references (core + current domain + CLI + attribute assembly) to ensure semantic model resolution.

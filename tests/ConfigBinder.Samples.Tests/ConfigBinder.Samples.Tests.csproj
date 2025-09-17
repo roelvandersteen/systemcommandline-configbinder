@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -12,12 +12,10 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="Serilog" Version="4.3.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
       <PrivateAssets>all</PrivateAssets>
@@ -26,8 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SystemCommandLine.ConfigBinder\SystemCommandLine.ConfigBinder.csproj" />
-    <ProjectReference Include="..\..\src\SystemCommandLine.ConfigBinder.Generators\SystemCommandLine.ConfigBinder.Generators.csproj" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="..\..\samples\ConfigBinder.Demo\ConfigBinder.Demo.csproj" />
+    <ProjectReference Include="..\..\samples\ConfigBinder.CodeGeneration\ConfigBinder.CodeGeneration.csproj" />
   </ItemGroup>
 
   <ItemGroup>
