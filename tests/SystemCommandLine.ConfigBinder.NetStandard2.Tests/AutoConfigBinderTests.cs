@@ -6,7 +6,7 @@ namespace SystemCommandLine.ConfigBinder.NetStandard2.Tests;
 
 public class AutoConfigBinderTests
 {
-    [SuppressMessage("ReSharper", "UnusedMember.Local"), SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")] 
+    [SuppressMessage("ReSharper", "UnusedMember.Local"), SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")]
     private sealed class TestConfig
     {
         [Display(Description = "Enable diagnostics output")]
