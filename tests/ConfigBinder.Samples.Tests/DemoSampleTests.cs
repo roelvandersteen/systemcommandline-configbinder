@@ -79,4 +79,14 @@ public class DemoSampleTests
         Assert.NotNull(processor);
         Assert.IsAssignableFrom<IAppProcessor>(processor);
     }
+
+    [Fact]
+    public async Task Program_ExitCode_ShouldBeZero()
+    {
+        // Arrange & Act
+        var exitCode = await Program.Main(["--endpoint", "https://example.com"]);
+
+        // Assert
+        Assert.Equal(0, exitCode);
+    }
 }
