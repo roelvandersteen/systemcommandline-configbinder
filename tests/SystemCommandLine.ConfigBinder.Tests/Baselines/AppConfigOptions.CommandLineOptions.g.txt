@@ -7,22 +7,20 @@ partial class AppConfigOptions
 
     public static System.CommandLine.Option<string> EndpointOption { get; } = new("--endpoint")
     {
-        Description = "Endpoint.",
-        Required = true,
+        Description = "Sets the Endpoint value.",
+        Required = true
     };
 
     public static System.CommandLine.Option<bool> DiagnosticsOption { get; } = new("--diagnostics")
     {
-        Description = "Diagnostics.",
-        Required = false,
-        DefaultValueFactory = _ => true,
+        Description = "Sets the Diagnostics value.",
+        DefaultValueFactory = _ => true
     };
 
     public static System.CommandLine.Option<int> RetriesOption { get; } = new("--retries")
     {
-        Description = "Retries.",
-        Required = false,
-        DefaultValueFactory = _ => 3,
+        Description = "Sets the Retries value.",
+        DefaultValueFactory = _ => 3
     };
 
     public static void AddOptionsTo(System.CommandLine.Command command)

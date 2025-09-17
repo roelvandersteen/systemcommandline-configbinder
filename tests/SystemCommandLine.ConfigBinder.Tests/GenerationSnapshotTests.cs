@@ -3,19 +3,21 @@ using System.Reflection;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using SystemCommandLine.ConfigBinder.Generators;
 
 namespace SystemCommandLine.ConfigBinder.Tests;
 
 public class GenerationSnapshotTests
 {
     private const string Source = """
+                                  using System.ComponentModel.DataAnnotations;
                                   using SystemCommandLine.ConfigBinder;
 
                                   namespace TestGeneration
                                   {
                                       public class AppConfig
                                       {
-                                          public string Endpoint { get; set; } = string.Empty;
+                                          [Required] public string Endpoint { get; set; } = string.Empty;
                                           public bool Diagnostics { get; set; } = true;
                                           public int Retries { get; set; } = 3;
                                       }
@@ -89,6 +91,21 @@ public class GenerationSnapshotTests
         };
 
         return CSharpCompilation.Create("Tests.Gen", [syntaxTree], references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+    }
+
+    [Theory, InlineData("Hello World", "Hello World"), InlineData("Hello \"World\"", "Hello \\\"World\\\""),
+     InlineData("Hello\\nWorld", "Hello\\\\nWorld"), InlineData("Hello\nWorld", "Hello\\nWorld"), InlineData("Hello\rWorld", "Hello\\rWorld"),
+     InlineData("Hello\\\"World", "Hello\\\\\\\"World"), InlineData("Path\\to\\file\nLine 2", "Path\\\\to\\\\file\\nLine 2")]
+    public void EscapeString_HandlesSpecialCharacters(string input, string expected)
+    {
+        // Use reflection to call the private EscapeString method
+        Type generatorType = typeof(CommandLineOptionsGenerator);
+        MethodInfo? escapeMethod = generatorType.GetMethod("EscapeString", BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(escapeMethod);
+        var result = (string)escapeMethod.Invoke(null, [input])!;
+
+        Assert.Equal(expected, result);
     }
 
     [Fact]

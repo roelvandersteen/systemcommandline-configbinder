@@ -8,14 +8,18 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SystemCommandLine.ConfigBinder.Generators;
 
-[Generator]
-public sealed class CommandLineOptionsGenerator : IIncrementalGenerator
+[Generator] public sealed class CommandLineOptionsGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var candidates = IdentifyMatchingClasses(context);
 
         context.RegisterSourceOutput(candidates, EmitAndReportDiagnostics);
+    }
+
+    internal static string EscapeString(string input)
+    {
+        return input.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n");
     }
 
     /// <summary>
@@ -74,25 +78,24 @@ public sealed class CommandLineOptionsGenerator : IIncrementalGenerator
             var optionName = GetOptionName(propertySymbol.Name);
             var optionFieldName = $"{propertySymbol.Name}Option";
             var optionTypeName = $"System.CommandLine.Option<{propertySymbol.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}>";
-            var required = propertySymbol.Type.IsReferenceType && propertySymbol.NullableAnnotation != NullableAnnotation.Annotated;
+            var required = IsRequired(propertySymbol);
 
+            var description = GetDescription(propertySymbol);
             var defaultExpression = GetDefaultExpression(propertySymbol);
+
             sb.AppendLine($"    public static {optionTypeName} {optionFieldName} {{ get; }} = new(\"{optionName}\")");
             sb.AppendLine("    {");
-            sb.AppendLine($"        Description = \"{propertySymbol.Name}.\",");
-            if (required && defaultExpression is null)
-            {
-                sb.AppendLine("        Required = true,");
-            }
+            sb.AppendLine($"        Description = \"{EscapeString(description)}\",");
 
-            if (defaultExpression is not null)
+            switch (required)
             {
-                sb.AppendLine("        Required = false,");
-            }
-
-            if (defaultExpression is not null)
-            {
-                sb.AppendLine($"        DefaultValueFactory = _ => {defaultExpression},");
+                case true:
+                    sb.AppendLine("        Required = true");
+                    break;
+                case false when defaultExpression is not null:
+                    // TODO test for IsDefaultStructValue and IsTrivialReferenceDefault
+                    sb.AppendLine($"        DefaultValueFactory = _ => {defaultExpression}");
+                    break;
             }
 
             sb.AppendLine("    };").AppendLine();
@@ -164,6 +167,21 @@ public sealed class CommandLineOptionsGenerator : IIncrementalGenerator
         return null;
     }
 
+    private static string GetDescription(IPropertySymbol propertySymbol)
+    {
+        foreach (var namedArgument in propertySymbol.GetAttributes()
+                     .Where(attribute => attribute.AttributeClass?.Name is "Display" or "DisplayAttribute")
+                     .SelectMany(attribute => attribute.NamedArguments))
+        {
+            if (namedArgument is { Key: "Description", Value.Value: string description })
+            {
+                return description;
+            }
+        }
+
+        return $"Sets the {propertySymbol.Name} value.";
+    }
+
     private static Match? GetMatch(GeneratorSyntaxContext ctx)
     {
         var classSyntax = (ClassDeclarationSyntax)ctx.Node;
@@ -175,17 +193,17 @@ public sealed class CommandLineOptionsGenerator : IIncrementalGenerator
 
         // Find the CommandLineOptionsFor attribute in the syntax
         AttributeSyntax? attributeSyntax = classSyntax.AttributeLists.SelectMany(al => al.Attributes)
-            .FirstOrDefault(a => a.Name.ToString().Contains("CommandLineOptionsFor") || a.Name.ToString() == "CommandLineOptionsFor");
+            .FirstOrDefault(a => a.Name.ToString().Contains("CommandLineOptionsFor"));
 
         // Parse the typeof(Type) argument from the syntax
-        AttributeArgumentSyntax? firstArg = attributeSyntax?.ArgumentList?.Arguments.FirstOrDefault();
-        if (firstArg?.Expression is not TypeOfExpressionSyntax typeofExpr)
+        AttributeArgumentSyntax? firstArgument = attributeSyntax?.ArgumentList?.Arguments.FirstOrDefault();
+        if (firstArgument?.Expression is not TypeOfExpressionSyntax typeOfExpressionSyntax)
         {
             return null;
         }
 
         // Get the type symbol from the typeof expression
-        TypeInfo targetTypeInfo = ctx.SemanticModel.GetTypeInfo(typeofExpr.Type);
+        TypeInfo targetTypeInfo = ctx.SemanticModel.GetTypeInfo(typeOfExpressionSyntax.Type);
         return targetTypeInfo.Type is INamedTypeSymbol targetType ? new Match(symbol, targetType) : null;
     }
 
@@ -197,15 +215,20 @@ public sealed class CommandLineOptionsGenerator : IIncrementalGenerator
             .Select((m, _) => m!);
     }
 
-    private static string Literal(object? v)
+    private static bool IsRequired(IPropertySymbol propertySymbol)
     {
-        return v switch
+        return propertySymbol.GetAttributes().Any(a => a.AttributeClass?.Name is "Required" or "RequiredAttribute");
+    }
+
+    private static string Literal(object? obj)
+    {
+        return obj switch
         {
             null => "null",
             string s => new StringBuilder().Append('"').Append(s.Replace(@"""", @"\""")).Append('"').ToString(),
             bool b => b ? "true" : "false",
             char c => new StringBuilder("'").Append(c == '\'' ? "\\'" : c).Append("'").ToString(),
-            _ => Convert.ToString(v, CultureInfo.InvariantCulture) ?? "null"
+            _ => Convert.ToString(obj, CultureInfo.InvariantCulture) ?? "null"
         };
     }
 
