@@ -1,162 +1,103 @@
-using System.CommandLine;
-using System.Reflection;
+using System.Collections;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using SystemCommandLine.ConfigBinder.Generators;
 using SystemCommandLine.ConfigBinder.Tests.Constants;
+using SystemCommandLine.ConfigBinder.Tests.Helpers;
 
 namespace SystemCommandLine.ConfigBinder.Tests;
 
 public class GenerationSnapshotTests
 {
-    private static Assembly LoadGeneratorAssembly()
+    public class DefaultValueTestData : IEnumerable<object[]>
     {
-        const string assemblyName = "SystemCommandLine.ConfigBinder.Generators";
-        const string assemblyFileName = $"{assemblyName}.dll";
-        Assembly? loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == assemblyName);
-
-        if (loadedAssembly != null)
+        IEnumerator IEnumerable.GetEnumerator()
         {
-            return loadedAssembly;
+            return GetEnumerator();
         }
 
-        var projectRoot = TestContext.ProjectRoot;
-        var binPath = Path.Combine(projectRoot, "..", "..", "src", assemblyName, "bin");
-        var possiblePaths = new[]
+        public IEnumerator<object[]> GetEnumerator()
         {
-            Path.GetFullPath(Path.Combine(binPath, "Debug", "netstandard2.0", assemblyFileName)),
-            Path.GetFullPath(Path.Combine(binPath, "Release", "netstandard2.0", assemblyFileName)),
-            Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty, assemblyFileName)
-        };
+            // Trivial defaults
+            yield return ["bool", "false", false, null!, "Trivial boolean default"];
+            yield return ["bool", "true", true, "true", "Meaningful boolean default"];
+            yield return ["int", "0", false, null!, "Trivial int default"];
+            yield return ["int", "100", true, "100", "Meaningful int default"];
+            yield return ["long", "0L", false, null!, "Trivial long default"];
+            yield return ["decimal", "0m", false, null!, "Trivial decimal default"];
+            yield return ["decimal", "0.15m", true, "0.15m", "Meaningful decimal default"];
+            yield return ["float", "0f", false, null!, "Trivial float default"];
+            yield return ["double", "0d", false, null!, "Trivial double default"];
+            yield return ["uint", "0U", false, null!, "Trivial uint default"];
+            yield return ["ulong", "0UL", false, null!, "Trivial ulong default"];
+            yield return ["char", "'\\0'", false, null!, "Trivial char default"];
 
-        foreach (var path in possiblePaths)
-        {
-            if (File.Exists(path))
-            {
-                return Assembly.Load(Path.GetFileNameWithoutExtension(path));
-            }
+            // Nullable types
+            yield return ["int?", "null", false, null!, "Nullable int with null default"];
+            yield return ["string?", "null", false, null!, "Nullable string with null default"];
+            yield return ["bool?", "null", false, null!, "Nullable bool with null default"];
+            yield return ["int?", "5", true, "5", "Nullable int with meaningful non-null default"];
+            yield return ["string?", "\"default\"", true, "\"default\"", "Nullable string with meaningful non-null default"];
+            yield return ["bool?", "true", true, "true", "Nullable bool with meaningful non-null default"];
+            yield return ["int?", "0", false, null!, "Nullable int with trivial non-null default"];
+            yield return ["bool?", "false", false, null!, "Nullable bool with trivial non-null default"];
+            yield return ["string?", "\"\"", false, null!, "Nullable string with empty default"];
+
+            // Arrays
+            yield return ["string[]?", "null", false, null!, "Null string array"];
+            yield return ["int[]?", "null", false, null!, "Null int array"];
+            yield return ["string[]", "[]", false, null!, "Empty array (collection expression)"];
+            yield return ["int[]", "new int[0]", false, null!, "Empty array (sized)"];
+            yield return ["string[]", "new string[] { }", false, null!, "Empty array (classic syntax)"];
+            yield return ["string[]", "[\"default\", \"values\"]", true, "[\"default\", \"values\"]", "Meaningful string array"];
+            yield return ["int[]", "[1, 2, 3]", true, "[1, 2, 3]", "Meaningful int array"];
+            yield return ["string[]", "[\"single\"]", true, "[\"single\"]", "Single value array"];
+            yield return
+            [
+                "string[]", "new string[] { \"classic\", \"syntax\" }", true, "new string[] { \"classic\", \"syntax\" }",
+                "Classic string array syntax"
+            ];
+            yield return ["int[]", "new int[] { 42, 99 }", true, "new int[] { 42, 99 }", "Classic int array syntax"];
         }
-
-        var searchedPaths = string.Join("\n  ", possiblePaths);
-        Assert.Fail($"Generator assembly not found. Searched:\n  {searchedPaths}");
-        throw new InvalidOperationException("Generator assembly not found.");
     }
 
-    internal static class TestContext
+    [Theory, ClassData(typeof(DefaultValueTestData))]
+    public void DefaultValues_ShouldHandleCorrectly_Theory(string propertyType, string defaultValue, bool shouldHaveFactory, string? expectedValue,
+        string comment = "")
     {
-        static TestContext()
-        {
-            var directory = Directory.GetCurrentDirectory();
-            while (directory is not null && !File.Exists(Path.Combine(directory, "SystemCommandLine.ConfigBinder.Tests.csproj")))
-            {
-                directory = Directory.GetParent(directory)?.FullName;
-            }
+        // Arrange
+        var source = GeneratorTestHelper.GenerateCodeForProperty(propertyType, defaultValue);
+        CSharpCompilation compilation = GeneratorTestHelper.SetupCSharpCompilation(source);
+        GeneratorDriver driver = GeneratorTestHelper.InitializeGeneratorDriver();
 
-            ProjectRoot = directory ?? throw new DirectoryNotFoundException("Could not locate test project root.");
-        }
+        // Act
+        GeneratorTestHelper.GeneratorResult generated = GeneratorTestHelper.RunGeneratorAndGetResult(driver, compilation);
 
-        public static string ProjectRoot { get; }
-    }
-
-    private static CSharpCompilation SetupCSharpCompilation()
-    {
-        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
-        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceConstants.Source, parseOptions);
-
-        return CSharpCompilation.Create("Tests.Gen",
-            [syntaxTree],
-            GetReferences(),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-    }
-
-    [Theory, InlineData("Hello World", "Hello World"), InlineData("Hello \"World\"", "Hello \\\"World\\\""),
-     InlineData("Hello\\nWorld", "Hello\\\\nWorld"), InlineData("Hello\nWorld", "Hello\\nWorld"), InlineData("Hello\rWorld", "Hello\\rWorld"),
-     InlineData("Hello\\\"World", "Hello\\\\\\\"World"), InlineData("Path\\to\\file\nLine 2", "Path\\\\to\\\\file\\nLine 2")]
-    public void EscapeString_HandlesSpecialCharacters(string input, string expected)
-    {
-        // Use reflection to call the private EscapeString method
-        Type generatorType = typeof(CommandLineOptionsGenerator);
-        MethodInfo? escapeMethod = generatorType.GetMethod("EscapeString", BindingFlags.NonPublic | BindingFlags.Static);
-
-        Assert.NotNull(escapeMethod);
-        var result = (string)escapeMethod.Invoke(null, [input])!;
-
-        Assert.Equal(expected, result);
-    }
-
-    private static void AssertNoDefaultFactory(string generated, string optionName)
-    {
-        var optionSection = GetOptionSection(generated, optionName);
-        Assert.DoesNotContain("DefaultValueFactory", optionSection);
-    }
-
-    private static void AssertHasDefaultFactory(string generated, string optionName, string expectedValue)
-    {
-        var optionSection = GetOptionSection(generated, optionName);
-        Assert.Contains($"DefaultValueFactory = _ => {expectedValue}", optionSection);
-    }
-
-    private static string GetOptionSection(string generated, string optionName)
-    {
-        var startIndex = generated.IndexOf($"{optionName} {{", StringComparison.Ordinal);
-        if (startIndex == -1)
-        {
-            return "";
-        }
-
-        var endIndex = generated.IndexOf("};", startIndex, StringComparison.Ordinal);
-        if (endIndex == -1)
-        {
-            return "";
-        }
-
-        return generated.Substring(startIndex, endIndex - startIndex + 2);
-    }
-
-    private static MetadataReference[] GetReferences()
-    {
-        return
-        [
-            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(CommandLineOptionsForAttribute).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(RootCommand).Assembly.Location)
-        ];
+        // Assert
+        Assert.False(generated.HasErrorDiagnostics, generated.DiagnosticsText);
+        GeneratorTestHelper.AssertExpectedDefaultFactory(shouldHaveFactory, expectedValue, generated.SourceText, comment);
     }
 
     [Fact]
     public void GeneratedSource_MatchesBaseline()
     {
         // Arrange
-        CSharpCompilation compilation = SetupCSharpCompilation();
+        CSharpCompilation compilation = GeneratorTestHelper.SetupCSharpCompilation(SourceConstants.SourceForBaseLine);
+        GeneratorDriver driver = GeneratorTestHelper.InitializeGeneratorDriver();
 
-        Assembly generatorAssembly = LoadGeneratorAssembly();
-        Type generatorType = generatorAssembly.GetType("SystemCommandLine.ConfigBinder.Generators.CommandLineOptionsGenerator", true)!;
-        var generator = (IIncrementalGenerator)Activator.CreateInstance(generatorType)!;
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
-
-        // Act
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation? _, out var diagnostics);
-
-        Assert.True(!diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error),
-            "Generator diagnostics: " + string.Join("\n", diagnostics.Select(d => d.ToString())));
-
-        GeneratorDriverRunResult runResult = driver.GetRunResult();
-        GeneratedSourceResult generatedSourceResult = runResult.Results.SelectMany(r => r.GeneratedSources)
-            .FirstOrDefault(s => s.HintName == "AppConfigOptions.CommandLineOptions.g.cs");
-
-        var generated = generatedSourceResult.SourceText?.ToString() ?? string.Empty;
-
-        generated = Normalize(generated);
-
-        var baselinePath = Path.Combine(TestContext.ProjectRoot, "Baselines", "AppConfigOptions.CommandLineOptions.g.txt");
+        var baselinePath = Path.Combine(GeneratorTestHelper.TestContext.ProjectRoot, "Baselines", "AppConfigOptions.CommandLineOptions.g.txt");
         var baseline = Normalize(File.ReadAllText(baselinePath));
 
-        // Assert
-        Assert.Equal(baseline, generated);
+        // Act
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGeneratorAndGetResult(driver, compilation);
+        var generatedSourceText = Normalize(result.SourceText);
 
-        if (baseline == generated)
+        // Assert
+        Assert.False(result.HasErrorDiagnostics, result.DiagnosticsText);
+        Assert.Equal(baseline, generatedSourceText);
+
+        if (baseline == generatedSourceText)
         {
             return;
         }
@@ -165,7 +106,7 @@ public class GenerationSnapshotTests
         var sb = new StringBuilder();
         sb.AppendLine("Generated source did not match baseline.");
         sb.AppendLine("--- Generated ---");
-        sb.AppendLine(generated);
+        sb.AppendLine(generatedSourceText);
         sb.AppendLine("--- Baseline ---");
         sb.AppendLine(baseline);
         Assert.Fail(sb.ToString());
@@ -177,149 +118,5 @@ public class GenerationSnapshotTests
         {
             return string.Join("\n", s.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n').Select(l => l.TrimEnd()));
         }
-    }
-
-    [Fact]
-    public void TrivialDefaults_ShouldNotHaveDefaultValueFactory()
-    {
-        // Arrange
-        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceConstants.SourceWithTrivialDefaults);
-        var compilation = CSharpCompilation.Create("Tests.Gen",
-            [syntaxTree],
-            GetReferences(),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        Assembly generatorAssembly = LoadGeneratorAssembly();
-        Type generatorType = generatorAssembly.GetType("SystemCommandLine.ConfigBinder.Generators.CommandLineOptionsGenerator", true)!;
-        var generator = (IIncrementalGenerator)Activator.CreateInstance(generatorType)!;
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
-
-        // Act
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
-
-        Assert.True(!diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error),
-            "Generator diagnostics: " + string.Join("\n", diagnostics.Select(d => d.ToString())));
-
-        GeneratorDriverRunResult runResult = driver.GetRunResult();
-        GeneratedSourceResult generatedSourceResult = runResult.Results.SelectMany(r => r.GeneratedSources)
-            .FirstOrDefault(s => s.HintName == "AppConfigOptions.CommandLineOptions.g.cs");
-
-        var generated = generatedSourceResult.SourceText?.ToString() ?? string.Empty;
-
-        // Assert - Properties with trivial defaults should NOT have DefaultValueFactory
-        AssertNoDefaultFactory(generated, "VerboseOption"); // bool = false
-        AssertNoDefaultFactory(generated, "CountOption"); // int = 0
-        AssertNoDefaultFactory(generated, "LongValueOption"); // long = 0L
-        AssertNoDefaultFactory(generated, "PriceOption"); // decimal = 0m
-        AssertNoDefaultFactory(generated, "FloatValueOption"); // float = 0f
-        AssertNoDefaultFactory(generated, "DoubleValueOption"); // double = 0d
-        AssertNoDefaultFactory(generated, "UIntValueOption"); // uint = 0U
-        AssertNoDefaultFactory(generated, "ULongValueOption"); // ulong = 0UL
-        AssertNoDefaultFactory(generated, "NullCharOption"); // char = '\0'
-
-        // Properties with meaningful defaults should HAVE DefaultValueFactory
-        AssertHasDefaultFactory(generated, "EnabledOption", "true"); // bool = true
-        AssertHasDefaultFactory(generated, "MaxItemsOption", "100"); // int = 100
-        AssertHasDefaultFactory(generated, "TaxOption", "0.15m"); // decimal = 0.15m
-    }
-
-    [Fact]
-    public void NullableTypes_ShouldHandleDefaultsCorrectly()
-    {
-        // Arrange
-        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
-        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceConstants.SourceWithNullableDefaults, parseOptions);
-        var compilation = CSharpCompilation.Create("Tests.Gen",
-            [syntaxTree],
-            GetReferences(),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        Assembly generatorAssembly = LoadGeneratorAssembly();
-        Type generatorType = generatorAssembly.GetType("SystemCommandLine.ConfigBinder.Generators.CommandLineOptionsGenerator", true)!;
-        var generator = (IIncrementalGenerator)Activator.CreateInstance(generatorType)!;
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
-
-        // Act
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
-
-        Assert.True(!diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error),
-            "Generator diagnostics: " + string.Join("\n", diagnostics.Select(d => d.ToString())));
-
-        GeneratorDriverRunResult runResult = driver.GetRunResult();
-        GeneratedSourceResult generatedSourceResult = runResult.Results.SelectMany(r => r.GeneratedSources)
-            .FirstOrDefault(s => s.HintName == "AppConfigOptions.CommandLineOptions.g.cs");
-
-        var generated = generatedSourceResult.SourceText?.ToString() ?? string.Empty;
-
-        // Assert - Non-nullable types with trivial defaults should NOT have DefaultValueFactory
-        AssertNoDefaultFactory(generated, "CountOption"); // int = 0
-        AssertNoDefaultFactory(generated, "VerboseOption"); // bool = false
-
-        // Non-nullable types with meaningful defaults should HAVE DefaultValueFactory
-        AssertHasDefaultFactory(generated, "MaxRetriesOption", "3"); // int = 3
-        AssertHasDefaultFactory(generated, "EnableLoggingOption", "true"); // bool = true
-
-        // Nullable types with null defaults should NOT have DefaultValueFactory (trivial)
-        AssertNoDefaultFactory(generated, "OptionalCountOption"); // int? = null
-        AssertNoDefaultFactory(generated, "OptionalNameOption"); // string? = null
-        AssertNoDefaultFactory(generated, "OptionalFlagOption"); // bool? = null
-
-        // Nullable types with meaningful non-null defaults should HAVE DefaultValueFactory
-        AssertHasDefaultFactory(generated, "DefaultCountOption", "5"); // int? = 5
-        AssertHasDefaultFactory(generated, "DefaultNameOption", "\"default\""); // string? = "default"
-        AssertHasDefaultFactory(generated, "DefaultFlagOption", "true"); // bool? = true
-
-        // Nullable types with trivial non-null defaults should NOT have DefaultValueFactory
-        AssertNoDefaultFactory(generated, "ZeroCountOption"); // int? = 0 (trivial even for nullable)
-        AssertNoDefaultFactory(generated, "FalseFlagOption"); // bool? = false (trivial even for nullable)
-
-        // Nullable string with empty default should NOT have DefaultValueFactory (trivial)
-        AssertNoDefaultFactory(generated, "EmptyStringOption"); // string? = ""
-    }
-
-    [Fact]
-    public void Arrays_ShouldHandleDefaultsCorrectly()
-    {
-        // Arrange
-        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceConstants.SourceWithArrayDefaults);
-        var compilation = CSharpCompilation.Create("Tests.Gen",
-            [syntaxTree],
-            GetReferences(),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        Assembly generatorAssembly = LoadGeneratorAssembly();
-        Type generatorType = generatorAssembly.GetType("SystemCommandLine.ConfigBinder.Generators.CommandLineOptionsGenerator", true)!;
-        var generator = (IIncrementalGenerator)Activator.CreateInstance(generatorType)!;
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
-
-        // Act
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
-
-        Assert.True(!diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error),
-            "Generator diagnostics: " + string.Join("\n", diagnostics.Select(d => d.ToString())));
-
-        GeneratorDriverRunResult runResult = driver.GetRunResult();
-        GeneratedSourceResult generatedSourceResult = runResult.Results.SelectMany(r => r.GeneratedSources)
-            .FirstOrDefault(s => s.HintName == "AppConfigOptions.CommandLineOptions.g.cs");
-
-        var generated = generatedSourceResult.SourceText?.ToString() ?? string.Empty;
-
-        // Assert - Arrays with null defaults should NOT have DefaultValueFactory (trivial)
-        AssertNoDefaultFactory(generated, "NullStringArrayOption");
-        AssertNoDefaultFactory(generated, "NullIntArrayOption");
-
-        // Arrays with empty defaults should NOT have DefaultValueFactory (trivial)
-        AssertNoDefaultFactory(generated, "EmptyStringArrayOption");
-        AssertNoDefaultFactory(generated, "EmptyIntArrayOption");
-        AssertNoDefaultFactory(generated, "EmptyStringArrayClassicOption");
-
-        // Arrays with meaningful defaults should HAVE DefaultValueFactory
-        AssertHasDefaultFactory(generated, "DefaultStringArrayOption", "[\"default\", \"values\"]");
-        AssertHasDefaultFactory(generated, "DefaultIntArrayOption", "[1, 2, 3]");
-        AssertHasDefaultFactory(generated, "SingleValueArrayOption", "[\"single\"]");
-
-        // Arrays with meaningful defaults using different syntax should HAVE DefaultValueFactory
-        AssertHasDefaultFactory(generated, "ClassicStringArrayOption", "new string[] { \"classic\", \"syntax\" }");
-        AssertHasDefaultFactory(generated, "ClassicIntArrayOption", "new int[] { 42, 99 }");
     }
 }
