@@ -6,8 +6,7 @@ namespace SystemCommandLine.ConfigBinder.Tests;
 
 public class AutoConfigBinderTests
 {
-    [SuppressMessage("ReSharper", "UnusedMember.Local")]
-    [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")]
+    [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")] [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Local")]
     private sealed class TestConfig
     {
         [Required][Display(Description = "Endpoint URL")] public string Endpoint { get; set; } = string.Empty;
@@ -257,12 +256,13 @@ public class AutoConfigBinderTests
         Assert.Contains(root.Options, o => o.Name == "--use-https");
     }
 
+    [SuppressMessage("ReSharper", "UnusedMember.Local")]
     private sealed class BoolDefaultFalseConfig
     {
         public bool Flag { get; set; } = false; // Should NOT generate --no-flag
     }
 
-    private sealed class ComplexNamingConfig
+    [SuppressMessage("ReSharper", "UnusedMember.Local")] private sealed class ComplexNamingConfig
     {
 #pragma warning disable S1144,S3459 // Allow auto-properties with initializers for testing purposes
         public int MaxRetryCount { get; set; }
@@ -271,10 +271,11 @@ public class AutoConfigBinderTests
         public string ApiEndpointUrl { get; set; } = "";
 
 #pragma warning disable S1144,S3459 // Allow auto-properties with initializers for testing purposes
-        public bool UseHTTPS { get; set; }
+        public bool UseHttps { get; set; }
 #pragma warning restore S1144,S3459 // Allow auto-properties with initializers for testing purposes
     }
 
+    [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Local")] [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")]
     private sealed class ValidationTestConfig
     {
         [Required]

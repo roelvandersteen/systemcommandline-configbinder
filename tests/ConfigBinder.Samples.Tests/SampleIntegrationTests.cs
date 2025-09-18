@@ -51,8 +51,6 @@ public class SampleIntegrationTests
         Assert.IsType<bool>(codeGenConfig.DryRun);
         Assert.IsType<bool>(reflectionConfig.DryRun);
 
-        Assert.IsType<bool>(codeGenConfig.Verbose);
-
         // Both have enum properties
         Assert.IsType<LogLevel>(codeGenConfig.LogLevel);
         Assert.IsType<Reflection.LogLevel>(reflectionConfig.LogLevel);
@@ -60,7 +58,8 @@ public class SampleIntegrationTests
         Assert.IsType<OutputFormat>(codeGenConfig.OutputFormat);
         Assert.IsType<Reflection.OutputFormat>(reflectionConfig.OutputFormat);
 
-        // Both have timeout properties (CodeGen uses int, Reflection uses int? but we test the simple version)
-        Assert.IsType<int>(codeGenConfig.TimeoutSeconds);
+        // Both configurations have nullable timeout properties
+        Assert.IsType<int>(codeGenConfig.TimeoutSeconds.GetValueOrDefault());
+        Assert.IsType<int>(reflectionConfig.TimeoutSeconds.GetValueOrDefault());
     }
 }

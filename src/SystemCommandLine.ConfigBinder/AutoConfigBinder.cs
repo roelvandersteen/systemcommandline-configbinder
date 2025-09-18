@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.CommandLine;
-using System.Linq;
 using System.CommandLine.Parsing;
 using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
@@ -226,18 +223,11 @@ public sealed class AutoConfigBinder<T> where T : new()
         public Action<T, object?> AssignDelegate { get; set; } = null!;
     }
 
-    internal struct OptionBuildResult
+    internal struct OptionBuildResult(Option primaryOption, Option? inverseBoolOption, bool boolInverse)
     {
-        public OptionBuildResult(Option primary, Option? inverse, bool flag)
-        {
-            PrimaryOption = primary;
-            InverseBoolOption = inverse;
-            BoolInverse = flag;
-        }
-
-        public Option PrimaryOption;
-        public Option? InverseBoolOption;
-        public bool BoolInverse;
+        public Option PrimaryOption = primaryOption;
+        public Option? InverseBoolOption = inverseBoolOption;
+        public bool BoolInverse = boolInverse;
     }
 
     internal static class OptionFactory

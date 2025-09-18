@@ -1,5 +1,4 @@
 using System.CommandLine;
-using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using SystemCommandLine.ConfigBinder.Generators;
@@ -110,39 +109,6 @@ internal static class GeneratorTestHelper
             MetadataReference.CreateFromFile(typeof(CommandLineOptionsForAttribute).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(RootCommand).Assembly.Location)
         ];
-    }
-
-    private static Assembly LoadGeneratorAssembly()
-    {
-        const string assemblyName = "SystemCommandLine.ConfigBinder.Generators";
-        const string assemblyFileName = $"{assemblyName}.dll";
-        Assembly? loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == assemblyName);
-
-        if (loadedAssembly != null)
-        {
-            return loadedAssembly;
-        }
-
-        var projectRoot = TestContext.ProjectRoot;
-        var binPath = Path.Combine(projectRoot, "..", "..", "src", assemblyName, "bin");
-        var possiblePaths = new[]
-        {
-            Path.GetFullPath(Path.Combine(binPath, "Debug", "netstandard2.0", assemblyFileName)),
-            Path.GetFullPath(Path.Combine(binPath, "Release", "netstandard2.0", assemblyFileName)),
-            Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty, assemblyFileName)
-        };
-
-        foreach (var path in possiblePaths)
-        {
-            if (File.Exists(path))
-            {
-                return Assembly.Load(Path.GetFileNameWithoutExtension(path));
-            }
-        }
-
-        var searchedPaths = string.Join("\n  ", possiblePaths);
-        Assert.Fail($"Generator assembly not found. Searched:\n  {searchedPaths}");
-        throw new InvalidOperationException("Generator assembly not found.");
     }
 
     public record GeneratorResult(string SourceText, bool HasErrorDiagnostics, string DiagnosticsText);
