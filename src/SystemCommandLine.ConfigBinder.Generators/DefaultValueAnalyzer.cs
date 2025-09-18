@@ -22,12 +22,7 @@ internal static class DefaultValueAnalyzer
     /// </returns>
     public static bool ShouldApplyDefault(IPropertySymbol prop, string? defaultExpression)
     {
-        if (IsRequired(prop))
-        {
-            return false;
-        }
-
-        if (defaultExpression == null)
+        if (IsRequired(prop) || defaultExpression is null or "null")
         {
             return false;
         }
@@ -36,6 +31,12 @@ internal static class DefaultValueAnalyzer
         if (prop.Type.TypeKind == TypeKind.Enum)
         {
             return true;
+        }
+
+        if (IsNullableGenericType(prop, out INamedTypeSymbol namedType))
+        {
+            ITypeSymbol underlyingType = namedType.TypeArguments[0];
+            return !IsDefaultValueForType(underlyingType, defaultExpression);
         }
 
         if (prop.Type.IsValueType)
@@ -113,6 +114,18 @@ internal static class DefaultValueAnalyzer
             // If parsing fails, assume it's not a default value
             return false;
         }
+    }
+
+    private static bool IsNullableGenericType(IPropertySymbol prop, out INamedTypeSymbol namedTypeSymbol)
+    {
+        if (prop.Type is INamedTypeSymbol { IsGenericType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } namedType)
+        {
+            namedTypeSymbol = namedType;
+            return true;
+        }
+
+        namedTypeSymbol = null!;
+        return false;
     }
 
     private static bool IsRequired(IPropertySymbol propertySymbol)

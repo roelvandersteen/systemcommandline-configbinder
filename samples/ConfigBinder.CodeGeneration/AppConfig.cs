@@ -35,6 +35,12 @@ public sealed class AppConfig
     [Display(Description = "The connection timeout in seconds.")]
     [Range(5, 300, ErrorMessage = "Timeout must be between 5 and 300 seconds")]
     public int TimeoutSeconds { get; set; } = 30;
+
+    [Display(Description = "Optional retry delay in milliseconds.")]
+    public int? RetryDelayMs { get; set; }
+
+    [Display(Description = "Optional connection string.")]
+    public string? ConnectionString { get; set; }
 }
 
 [SuppressMessage("ReSharper", "UnusedMember.Global")]

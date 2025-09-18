@@ -19,6 +19,8 @@ root.SetAction(async (parseResult, cancellationToken) =>
     sb.AppendLine($"  OutputFormat: {config.OutputFormat}");
     sb.AppendLine($"  Verbose: {config.Verbose}");
     sb.AppendLine($"  TimeoutSeconds: {config.TimeoutSeconds}");
+    sb.AppendLine($"  RetryDelayMs: {config.RetryDelayMs?.ToString() ?? "null"}");
+    sb.AppendLine($"  ConnectionString: {config.ConnectionString ?? "null"}");
 
     await Console.Out.WriteLineAsync(sb, cancellationToken);
     await Task.Delay(200, cancellationToken);

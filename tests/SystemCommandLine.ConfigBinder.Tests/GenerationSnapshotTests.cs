@@ -9,51 +9,6 @@ namespace SystemCommandLine.ConfigBinder.Tests;
 
 public class GenerationSnapshotTests
 {
-    private const string Source = """
-                                  using System.ComponentModel.DataAnnotations;
-                                  using SystemCommandLine.ConfigBinder;
-
-                                  namespace TestGeneration
-                                  {
-                                      public class AppConfig
-                                      {
-                                          [Required] public string Endpoint { get; set; } = string.Empty;
-                                          public bool Diagnostics { get; set; } = true;
-                                          public int Retries { get; set; } = 3;
-                                      }
-                                  
-                                      [CommandLineOptionsFor(typeof(AppConfig))]
-                                      public partial class AppConfigOptions { }
-                                  }
-                                  """;
-
-    private const string SourceWithTrivialDefaults = """
-                                                     using System.ComponentModel.DataAnnotations;
-                                                     using SystemCommandLine.ConfigBinder;
-
-                                                     namespace TestGeneration
-                                                     {
-                                                         public class AppConfig
-                                                         {
-                                                             public bool Verbose { get; set; } = false;     // Should NOT get DefaultValueFactory (trivial default)
-                                                             public int Count { get; set; } = 0;            // Should NOT get DefaultValueFactory (trivial default)
-                                                             public long LongValue { get; set; } = 0L;      // Should NOT get DefaultValueFactory (trivial default)
-                                                             public decimal Price { get; set; } = 0m;       // Should NOT get DefaultValueFactory (trivial default)
-                                                             public float FloatValue { get; set; } = 0f;    // Should NOT get DefaultValueFactory (trivial default)
-                                                             public double DoubleValue { get; set; } = 0d;  // Should NOT get DefaultValueFactory (trivial default)
-                                                             public uint UIntValue { get; set; } = 0U;      // Should NOT get DefaultValueFactory (trivial default)
-                                                             public ulong ULongValue { get; set; } = 0UL;   // Should NOT get DefaultValueFactory (trivial default)
-                                                             public char NullChar { get; set; } = '\0';     // Should NOT get DefaultValueFactory (trivial default)
-                                                             public bool Enabled { get; set; } = true;      // Should get DefaultValueFactory (meaningful default)
-                                                             public int MaxItems { get; set; } = 100;       // Should get DefaultValueFactory (meaningful default)
-                                                             public decimal Tax { get; set; } = 0.15m;      // Should get DefaultValueFactory (meaningful default)
-                                                         }
-                                                     
-                                                         [CommandLineOptionsFor(typeof(AppConfig))]
-                                                         public partial class AppConfigOptions { }
-                                                     }
-                                                     """;
-
     private static Assembly LoadGeneratorAssembly()
     {
         const string assemblyName = "SystemCommandLine.ConfigBinder.Generators";
@@ -106,7 +61,7 @@ public class GenerationSnapshotTests
     private static CSharpCompilation SetupCSharpCompilation()
     {
         var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
-        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(Source, parseOptions);
+        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceConstants.Source, parseOptions);
 
         return CSharpCompilation.Create("Tests.Gen",
             [syntaxTree],
@@ -227,7 +182,7 @@ public class GenerationSnapshotTests
     public void TrivialDefaults_ShouldNotHaveDefaultValueFactory()
     {
         // Arrange
-        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceWithTrivialDefaults);
+        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceConstants.SourceWithTrivialDefaults);
         var compilation = CSharpCompilation.Create("Tests.Gen",
             [syntaxTree],
             GetReferences(),
@@ -265,5 +220,59 @@ public class GenerationSnapshotTests
         AssertHasDefaultFactory(generated, "EnabledOption", "true"); // bool = true
         AssertHasDefaultFactory(generated, "MaxItemsOption", "100"); // int = 100
         AssertHasDefaultFactory(generated, "TaxOption", "0.15m"); // decimal = 0.15m
+    }
+
+    [Fact]
+    public void NullableTypes_ShouldHandleDefaultsCorrectly()
+    {
+        // Arrange
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
+        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceConstants.SourceWithNullableDefaults, parseOptions);
+        var compilation = CSharpCompilation.Create("Tests.Gen",
+            [syntaxTree],
+            GetReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        Assembly generatorAssembly = LoadGeneratorAssembly();
+        Type generatorType = generatorAssembly.GetType("SystemCommandLine.ConfigBinder.Generators.CommandLineOptionsGenerator", true)!;
+        var generator = (IIncrementalGenerator)Activator.CreateInstance(generatorType)!;
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
+
+        // Act
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
+
+        Assert.True(!diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error),
+            "Generator diagnostics: " + string.Join("\n", diagnostics.Select(d => d.ToString())));
+
+        GeneratorDriverRunResult runResult = driver.GetRunResult();
+        GeneratedSourceResult generatedSourceResult = runResult.Results.SelectMany(r => r.GeneratedSources)
+            .FirstOrDefault(s => s.HintName == "AppConfigOptions.CommandLineOptions.g.cs");
+
+        var generated = generatedSourceResult.SourceText?.ToString() ?? string.Empty;
+
+        // Assert - Non-nullable types with trivial defaults should NOT have DefaultValueFactory
+        AssertNoDefaultFactory(generated, "CountOption"); // int = 0
+        AssertNoDefaultFactory(generated, "VerboseOption"); // bool = false
+
+        // Non-nullable types with meaningful defaults should HAVE DefaultValueFactory
+        AssertHasDefaultFactory(generated, "MaxRetriesOption", "3"); // int = 3
+        AssertHasDefaultFactory(generated, "EnableLoggingOption", "true"); // bool = true
+
+        // Nullable types with null defaults should NOT have DefaultValueFactory (trivial)
+        AssertNoDefaultFactory(generated, "OptionalCountOption"); // int? = null
+        AssertNoDefaultFactory(generated, "OptionalNameOption"); // string? = null
+        AssertNoDefaultFactory(generated, "OptionalFlagOption"); // bool? = null
+
+        // Nullable types with meaningful non-null defaults should HAVE DefaultValueFactory
+        AssertHasDefaultFactory(generated, "DefaultCountOption", "5"); // int? = 5
+        AssertHasDefaultFactory(generated, "DefaultNameOption", "\"default\""); // string? = "default"
+        AssertHasDefaultFactory(generated, "DefaultFlagOption", "true"); // bool? = true
+
+        // Nullable types with trivial non-null defaults should NOT have DefaultValueFactory
+        AssertNoDefaultFactory(generated, "ZeroCountOption"); // int? = 0 (trivial even for nullable)
+        AssertNoDefaultFactory(generated, "FalseFlagOption"); // bool? = false (trivial even for nullable)
+
+        // Nullable string with empty default should NOT have DefaultValueFactory (trivial)
+        AssertNoDefaultFactory(generated, "EmptyStringOption"); // string? = ""
     }
 }

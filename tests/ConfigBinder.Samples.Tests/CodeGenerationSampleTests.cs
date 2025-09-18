@@ -15,7 +15,7 @@ public class CodeGenerationSampleTests
         AppConfigOptions.AddOptionsTo(command);
 
         // Assert - The command will include both positive and negative options for booleans
-        Assert.True(command.Options.Count >= 8); // At least the basic 8 options
+        Assert.True(command.Options.Count >= 10); // At least the basic 10 options (including new nullable ones)
         Assert.Contains(command.Options, o => o.Name == "--endpoint");
         Assert.Contains(command.Options, o => o.Name == "--database");
         Assert.Contains(command.Options, o => o.Name == "--dry-run");
@@ -24,6 +24,8 @@ public class CodeGenerationSampleTests
         Assert.Contains(command.Options, o => o.Name == "--output-format");
         Assert.Contains(command.Options, o => o.Name == "--verbose");
         Assert.Contains(command.Options, o => o.Name == "--timeout-seconds");
+        Assert.Contains(command.Options, o => o.Name == "--retry-delay-ms");
+        Assert.Contains(command.Options, o => o.Name == "--connection-string");
     }
 
     [Fact]
@@ -56,6 +58,8 @@ public class CodeGenerationSampleTests
         Assert.Equal(OutputFormat.Json, config.OutputFormat);
         Assert.False(config.Verbose);
         Assert.Equal(30, config.TimeoutSeconds);
+        Assert.Null(config.RetryDelayMs); // Nullable int should be null by default
+        Assert.Null(config.ConnectionString); // Nullable string should be null by default
     }
 
     [Fact]
@@ -88,6 +92,33 @@ public class CodeGenerationSampleTests
         Assert.Equal(OutputFormat.Xml, config.OutputFormat);
         Assert.True(config.Verbose);
         Assert.Equal(60, config.TimeoutSeconds);
+    }
+
+    [Fact]
+    public void AppConfigOptions_Get_WithNullableValues_ShouldBindCorrectly()
+    {
+        // Arrange
+        var command = new RootCommand();
+        AppConfigOptions.AddOptionsTo(command);
+        var args = new[]
+        {
+            "--endpoint",
+            "https://nullable-test.com",
+            "--retry-delay-ms",
+            "250",
+            "--connection-string",
+            "server=test;database=mydb"
+        };
+
+        // Act
+        ParseResult parseResult = command.Parse(args);
+        var config = AppConfigOptions.Get(parseResult);
+
+        // Assert
+        Assert.NotNull(config);
+        Assert.Equal("https://nullable-test.com", config.Endpoint);
+        Assert.Equal(250, config.RetryDelayMs);
+        Assert.Equal("server=test;database=mydb", config.ConnectionString);
     }
 
     [Fact]
