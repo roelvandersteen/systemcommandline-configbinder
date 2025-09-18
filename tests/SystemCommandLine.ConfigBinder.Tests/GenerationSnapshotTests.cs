@@ -27,6 +27,33 @@ public class GenerationSnapshotTests
                                   }
                                   """;
 
+    private const string SourceWithTrivialDefaults = """
+                                                     using System.ComponentModel.DataAnnotations;
+                                                     using SystemCommandLine.ConfigBinder;
+
+                                                     namespace TestGeneration
+                                                     {
+                                                         public class AppConfig
+                                                         {
+                                                             public bool Verbose { get; set; } = false;     // Should NOT get DefaultValueFactory (trivial default)
+                                                             public int Count { get; set; } = 0;            // Should NOT get DefaultValueFactory (trivial default)
+                                                             public long LongValue { get; set; } = 0L;      // Should NOT get DefaultValueFactory (trivial default)
+                                                             public decimal Price { get; set; } = 0m;       // Should NOT get DefaultValueFactory (trivial default)
+                                                             public float FloatValue { get; set; } = 0f;    // Should NOT get DefaultValueFactory (trivial default)
+                                                             public double DoubleValue { get; set; } = 0d;  // Should NOT get DefaultValueFactory (trivial default)
+                                                             public uint UIntValue { get; set; } = 0U;      // Should NOT get DefaultValueFactory (trivial default)
+                                                             public ulong ULongValue { get; set; } = 0UL;   // Should NOT get DefaultValueFactory (trivial default)
+                                                             public char NullChar { get; set; } = '\0';     // Should NOT get DefaultValueFactory (trivial default)
+                                                             public bool Enabled { get; set; } = true;      // Should get DefaultValueFactory (meaningful default)
+                                                             public int MaxItems { get; set; } = 100;       // Should get DefaultValueFactory (meaningful default)
+                                                             public decimal Tax { get; set; } = 0.15m;      // Should get DefaultValueFactory (meaningful default)
+                                                         }
+                                                     
+                                                         [CommandLineOptionsFor(typeof(AppConfig))]
+                                                         public partial class AppConfigOptions { }
+                                                     }
+                                                     """;
+
     private static Assembly LoadGeneratorAssembly()
     {
         const string assemblyName = "SystemCommandLine.ConfigBinder.Generators";
@@ -81,16 +108,10 @@ public class GenerationSnapshotTests
         var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
         SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(Source, parseOptions);
 
-        // Collect a broad set of references (core + current domain + CLI + attribute assembly) to ensure semantic model resolution.
-        var references = new[]
-        {
-            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(CommandLineOptionsForAttribute).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(RootCommand).Assembly.Location)
-        };
-
-        return CSharpCompilation.Create("Tests.Gen", [syntaxTree], references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        return CSharpCompilation.Create("Tests.Gen",
+            [syntaxTree],
+            GetReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
     }
 
     [Theory, InlineData("Hello World", "Hello World"), InlineData("Hello \"World\"", "Hello \\\"World\\\""),
@@ -106,6 +127,46 @@ public class GenerationSnapshotTests
         var result = (string)escapeMethod.Invoke(null, [input])!;
 
         Assert.Equal(expected, result);
+    }
+
+    private static void AssertNoDefaultFactory(string generated, string optionName)
+    {
+        var optionSection = GetOptionSection(generated, optionName);
+        Assert.DoesNotContain("DefaultValueFactory", optionSection);
+    }
+
+    private static void AssertHasDefaultFactory(string generated, string optionName, string expectedValue)
+    {
+        var optionSection = GetOptionSection(generated, optionName);
+        Assert.Contains($"DefaultValueFactory = _ => {expectedValue}", optionSection);
+    }
+
+    private static string GetOptionSection(string generated, string optionName)
+    {
+        var startIndex = generated.IndexOf($"{optionName} {{", StringComparison.Ordinal);
+        if (startIndex == -1)
+        {
+            return "";
+        }
+
+        var endIndex = generated.IndexOf("};", startIndex, StringComparison.Ordinal);
+        if (endIndex == -1)
+        {
+            return "";
+        }
+
+        return generated.Substring(startIndex, endIndex - startIndex + 2);
+    }
+
+    private static MetadataReference[] GetReferences()
+    {
+        return
+        [
+            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(CommandLineOptionsForAttribute).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(RootCommand).Assembly.Location)
+        ];
     }
 
     [Fact]
@@ -160,5 +221,49 @@ public class GenerationSnapshotTests
         {
             return string.Join("\n", s.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n').Select(l => l.TrimEnd()));
         }
+    }
+
+    [Fact]
+    public void TrivialDefaults_ShouldNotHaveDefaultValueFactory()
+    {
+        // Arrange
+        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceWithTrivialDefaults);
+        var compilation = CSharpCompilation.Create("Tests.Gen",
+            [syntaxTree],
+            GetReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        Assembly generatorAssembly = LoadGeneratorAssembly();
+        Type generatorType = generatorAssembly.GetType("SystemCommandLine.ConfigBinder.Generators.CommandLineOptionsGenerator", true)!;
+        var generator = (IIncrementalGenerator)Activator.CreateInstance(generatorType)!;
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
+
+        // Act
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
+
+        Assert.True(!diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error),
+            "Generator diagnostics: " + string.Join("\n", diagnostics.Select(d => d.ToString())));
+
+        GeneratorDriverRunResult runResult = driver.GetRunResult();
+        GeneratedSourceResult generatedSourceResult = runResult.Results.SelectMany(r => r.GeneratedSources)
+            .FirstOrDefault(s => s.HintName == "AppConfigOptions.CommandLineOptions.g.cs");
+
+        var generated = generatedSourceResult.SourceText?.ToString() ?? string.Empty;
+
+        // Assert - Properties with trivial defaults should NOT have DefaultValueFactory
+        AssertNoDefaultFactory(generated, "VerboseOption"); // bool = false
+        AssertNoDefaultFactory(generated, "CountOption"); // int = 0
+        AssertNoDefaultFactory(generated, "LongValueOption"); // long = 0L
+        AssertNoDefaultFactory(generated, "PriceOption"); // decimal = 0m
+        AssertNoDefaultFactory(generated, "FloatValueOption"); // float = 0f
+        AssertNoDefaultFactory(generated, "DoubleValueOption"); // double = 0d
+        AssertNoDefaultFactory(generated, "UIntValueOption"); // uint = 0U
+        AssertNoDefaultFactory(generated, "ULongValueOption"); // ulong = 0UL
+        AssertNoDefaultFactory(generated, "NullCharOption"); // char = '\0'
+
+        // Properties with meaningful defaults should HAVE DefaultValueFactory
+        AssertHasDefaultFactory(generated, "EnabledOption", "true"); // bool = true
+        AssertHasDefaultFactory(generated, "MaxItemsOption", "100"); // int = 100
+        AssertHasDefaultFactory(generated, "TaxOption", "0.15m"); // decimal = 0.15m
     }
 }

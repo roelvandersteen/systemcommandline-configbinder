@@ -90,7 +90,7 @@ namespace SystemCommandLine.ConfigBinder.Generators;
             {
                 sb.AppendLine("        Required = true");
             }
-            else if (ShouldApplyDefault(propertySymbol, defaultExpression))
+            else if (DefaultValueAnalyzer.ShouldApplyDefault(propertySymbol, defaultExpression))
             {
                 sb.AppendLine($"        DefaultValueFactory = _ => {defaultExpression}");
             }
@@ -165,15 +165,9 @@ namespace SystemCommandLine.ConfigBinder.Generators;
 
         return initializerValue switch
         {
-            // Handle literals: "string", 123, true, etc.
             LiteralExpressionSyntax literal => Literal(literal),
-
-            // Handle enum values: LogLevel.Information
             MemberAccessExpressionSyntax memberAccess => GetEnumMemberExpression(memberAccess, prop),
-
-            // Handle simple identifiers: could be enum values without qualification
             IdentifierNameSyntax identifier => GetIdentifierExpression(identifier, prop),
-
             _ => null
         };
     }
@@ -195,28 +189,26 @@ namespace SystemCommandLine.ConfigBinder.Generators;
 
     private static string? GetEnumMemberExpression(MemberAccessExpressionSyntax memberAccess, IPropertySymbol prop)
     {
-        // For enum member access like LogLevel.Information, generate the fully qualified name
-        if (prop.Type.TypeKind == TypeKind.Enum)
+        if (prop.Type.TypeKind != TypeKind.Enum)
         {
-            var enumTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-            var memberName = memberAccess.Name.Identifier.ValueText;
-            return $"{enumTypeName}.{memberName}";
+            return null;
         }
 
-        return null;
+        var enumTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        var memberName = memberAccess.Name.Identifier.ValueText;
+        return $"{enumTypeName}.{memberName}";
     }
 
     private static string? GetIdentifierExpression(IdentifierNameSyntax identifier, IPropertySymbol prop)
     {
-        // For simple identifiers that might be enum values
-        if (prop.Type.TypeKind == TypeKind.Enum)
+        if (prop.Type.TypeKind != TypeKind.Enum)
         {
-            var enumTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-            var memberName = identifier.Identifier.ValueText;
-            return $"{enumTypeName}.{memberName}";
+            return null;
         }
 
-        return null;
+        var enumTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        var memberName = identifier.Identifier.ValueText;
+        return $"{enumTypeName}.{memberName}";
     }
 
     private static Match? GetMatch(GeneratorSyntaxContext ctx)
@@ -267,44 +259,6 @@ namespace SystemCommandLine.ConfigBinder.Generators;
             char c => new StringBuilder("'").Append(c == '\'' ? "\\'" : c).Append("'").ToString(),
             _ => Convert.ToString(obj, CultureInfo.InvariantCulture) ?? "null"
         };
-    }
-
-    private static bool ShouldApplyDefault(IPropertySymbol prop, string? defaultExpression)
-    {
-        // Don't apply defaults to required properties
-        if (IsRequired(prop))
-        {
-            return false;
-        }
-
-        // No default expression means no default to apply
-        if (defaultExpression == null)
-        {
-            return false;
-        }
-
-        // For enums, always apply non-null defaults (they're not "trivial")
-        if (prop.Type.TypeKind == TypeKind.Enum)
-        {
-            return true;
-        }
-
-        // For value types, check if it's the default value
-        if (prop.Type.IsValueType)
-        {
-            // For now, apply all non-null defaults for value types
-            // A more sophisticated check would compare against default(T)
-            return true;
-        }
-
-        // For reference types, apply if not empty string
-        if (prop.Type.SpecialType == SpecialType.System_String)
-        {
-            // Don't apply empty string defaults
-            return !defaultExpression.Equals("\"\"") && !defaultExpression.Equals("string.Empty");
-        }
-
-        return true;
     }
 
     private sealed record Match(INamedTypeSymbol OptionsClassSymbol, INamedTypeSymbol TargetConfigSymbol)
