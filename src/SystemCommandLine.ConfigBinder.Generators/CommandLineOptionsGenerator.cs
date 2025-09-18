@@ -86,16 +86,13 @@ namespace SystemCommandLine.ConfigBinder.Generators;
             sb.AppendLine($"    public static {optionTypeName} {optionFieldName} {{ get; }} = new(\"{optionName}\")");
             sb.AppendLine("    {");
             sb.AppendLine($"        Description = \"{EscapeString(description)}\",");
-
-            switch (required)
+            if (required)
             {
-                case true:
-                    sb.AppendLine("        Required = true");
-                    break;
-                case false when defaultExpression is not null:
-                    // TODO test for IsDefaultStructValue and IsTrivialReferenceDefault
-                    sb.AppendLine($"        DefaultValueFactory = _ => {defaultExpression}");
-                    break;
+                sb.AppendLine("        Required = true");
+            }
+            else if (ShouldApplyDefault(propertySymbol, defaultExpression))
+            {
+                sb.AppendLine($"        DefaultValueFactory = _ => {defaultExpression}");
             }
 
             sb.AppendLine("    };").AppendLine();
@@ -159,12 +156,26 @@ namespace SystemCommandLine.ConfigBinder.Generators;
     {
         SyntaxReference? syntaxReference = prop.DeclaringSyntaxReferences.FirstOrDefault();
         var propertyDeclaration = syntaxReference?.GetSyntax() as PropertyDeclarationSyntax;
-        if (propertyDeclaration?.Initializer?.Value is LiteralExpressionSyntax literal)
+        ExpressionSyntax? initializerValue = propertyDeclaration?.Initializer?.Value;
+
+        if (initializerValue == null)
         {
-            return Literal(literal);
+            return null;
         }
 
-        return null;
+        return initializerValue switch
+        {
+            // Handle literals: "string", 123, true, etc.
+            LiteralExpressionSyntax literal => Literal(literal),
+
+            // Handle enum values: LogLevel.Information
+            MemberAccessExpressionSyntax memberAccess => GetEnumMemberExpression(memberAccess, prop),
+
+            // Handle simple identifiers: could be enum values without qualification
+            IdentifierNameSyntax identifier => GetIdentifierExpression(identifier, prop),
+
+            _ => null
+        };
     }
 
     private static string GetDescription(IPropertySymbol propertySymbol)
@@ -180,6 +191,32 @@ namespace SystemCommandLine.ConfigBinder.Generators;
         }
 
         return $"Sets the {propertySymbol.Name} value.";
+    }
+
+    private static string? GetEnumMemberExpression(MemberAccessExpressionSyntax memberAccess, IPropertySymbol prop)
+    {
+        // For enum member access like LogLevel.Information, generate the fully qualified name
+        if (prop.Type.TypeKind == TypeKind.Enum)
+        {
+            var enumTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+            var memberName = memberAccess.Name.Identifier.ValueText;
+            return $"{enumTypeName}.{memberName}";
+        }
+
+        return null;
+    }
+
+    private static string? GetIdentifierExpression(IdentifierNameSyntax identifier, IPropertySymbol prop)
+    {
+        // For simple identifiers that might be enum values
+        if (prop.Type.TypeKind == TypeKind.Enum)
+        {
+            var enumTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+            var memberName = identifier.Identifier.ValueText;
+            return $"{enumTypeName}.{memberName}";
+        }
+
+        return null;
     }
 
     private static Match? GetMatch(GeneratorSyntaxContext ctx)
@@ -230,6 +267,44 @@ namespace SystemCommandLine.ConfigBinder.Generators;
             char c => new StringBuilder("'").Append(c == '\'' ? "\\'" : c).Append("'").ToString(),
             _ => Convert.ToString(obj, CultureInfo.InvariantCulture) ?? "null"
         };
+    }
+
+    private static bool ShouldApplyDefault(IPropertySymbol prop, string? defaultExpression)
+    {
+        // Don't apply defaults to required properties
+        if (IsRequired(prop))
+        {
+            return false;
+        }
+
+        // No default expression means no default to apply
+        if (defaultExpression == null)
+        {
+            return false;
+        }
+
+        // For enums, always apply non-null defaults (they're not "trivial")
+        if (prop.Type.TypeKind == TypeKind.Enum)
+        {
+            return true;
+        }
+
+        // For value types, check if it's the default value
+        if (prop.Type.IsValueType)
+        {
+            // For now, apply all non-null defaults for value types
+            // A more sophisticated check would compare against default(T)
+            return true;
+        }
+
+        // For reference types, apply if not empty string
+        if (prop.Type.SpecialType == SpecialType.System_String)
+        {
+            // Don't apply empty string defaults
+            return !defaultExpression.Equals("\"\"") && !defaultExpression.Equals("string.Empty");
+        }
+
+        return true;
     }
 
     private sealed record Match(INamedTypeSymbol OptionsClassSymbol, INamedTypeSymbol TargetConfigSymbol)

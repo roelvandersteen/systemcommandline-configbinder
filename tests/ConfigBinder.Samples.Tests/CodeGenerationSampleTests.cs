@@ -50,12 +50,12 @@ public class CodeGenerationSampleTests
         Assert.NotNull(config);
         Assert.Equal("https://example.com", config.Endpoint);
         Assert.Equal("TestDb", config.Database);
-        Assert.True(config.DryRun); // Default value
-        Assert.Equal(LogLevel.Trace, config.LogLevel); // Generator doesn't support enum defaults yet - uses first enum value
+        Assert.True(config.DryRun);
+        Assert.Equal(LogLevel.Information, config.LogLevel);
         Assert.Equal(5, config.MaxRetries);
-        Assert.Equal(OutputFormat.Json, config.OutputFormat); // Generator doesn't support enum defaults yet - uses first enum value
-        Assert.False(config.Verbose); // Default value
-        Assert.Equal(30, config.TimeoutSeconds); // Default value
+        Assert.Equal(OutputFormat.Json, config.OutputFormat);
+        Assert.False(config.Verbose);
+        Assert.Equal(30, config.TimeoutSeconds);
     }
 
     [Fact]
