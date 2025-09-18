@@ -69,7 +69,7 @@ public class GenerationSnapshotTests
         // Arrange
         var source = GeneratorTestHelper.GenerateCodeForProperty(propertyType, defaultValue);
         CSharpCompilation compilation = GeneratorTestHelper.SetupCSharpCompilation(source);
-        GeneratorDriver driver = GeneratorTestHelper.InitializeGeneratorDriver();
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new CommandLineOptionsGenerator());
 
         // Act
         GeneratorTestHelper.GeneratorResult generated = GeneratorTestHelper.RunGeneratorAndGetResult(driver, compilation);
@@ -84,7 +84,7 @@ public class GenerationSnapshotTests
     {
         // Arrange
         CSharpCompilation compilation = GeneratorTestHelper.SetupCSharpCompilation(SourceConstants.SourceForBaseLine);
-        GeneratorDriver driver = GeneratorTestHelper.InitializeGeneratorDriver();
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new CommandLineOptionsGenerator());
 
         var baselinePath = Path.Combine(GeneratorTestHelper.TestContext.ProjectRoot, "Baselines", "AppConfigOptions.CommandLineOptions.g.txt");
         var baseline = Normalize(File.ReadAllText(baselinePath));

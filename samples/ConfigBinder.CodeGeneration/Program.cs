@@ -16,11 +16,12 @@ root.SetAction(async (parseResult, cancellationToken) =>
     sb.AppendLine($"  DryRun: {config.DryRun}");
     sb.AppendLine($"  LogLevel: {config.LogLevel}");
     sb.AppendLine($"  MaxRetries: {config.MaxRetries}");
+    sb.AppendLine($"  ContainerNames: {string.Join(",", config.ContainerNames)}");
+    sb.AppendLine($"  PartitionKeys: {string.Join(",", config.PartitionKeys)}");
+    sb.AppendLine($"  ConfigFile: {config.ConfigFile?.FullName ?? "none"}");
+    sb.AppendLine($"  TimeoutSeconds: {config.TimeoutSeconds?.ToString() ?? "none"}");
+    sb.AppendLine($"  ConnectionString: {config.ConnectionString ?? "none"}");
     sb.AppendLine($"  OutputFormat: {config.OutputFormat}");
-    sb.AppendLine($"  Verbose: {config.Verbose}");
-    sb.AppendLine($"  TimeoutSeconds: {config.TimeoutSeconds}");
-    sb.AppendLine($"  RetryDelayMs: {config.RetryDelayMs?.ToString() ?? "null"}");
-    sb.AppendLine($"  ConnectionString: {config.ConnectionString ?? "null"}");
 
     await Console.Out.WriteLineAsync(sb, cancellationToken);
     await Task.Delay(200, cancellationToken);

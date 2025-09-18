@@ -15,7 +15,7 @@ public class CodeGenerationSampleTests
         AppConfigOptions.AddOptionsTo(command);
 
         // Assert - The command will include both positive and negative options for booleans
-        Assert.True(command.Options.Count >= 10); // At least the basic 10 options (including new nullable ones)
+        Assert.True(command.Options.Count >= 11); // At least the basic 11 options (including new nullable ones)
         Assert.Contains(command.Options, o => o.Name == "--endpoint");
         Assert.Contains(command.Options, o => o.Name == "--database");
         Assert.Contains(command.Options, o => o.Name == "--dry-run");
@@ -23,6 +23,7 @@ public class CodeGenerationSampleTests
         Assert.Contains(command.Options, o => o.Name == "--max-retries");
         Assert.Contains(command.Options, o => o.Name == "--output-format");
         Assert.Contains(command.Options, o => o.Name == "--verbose");
+        Assert.Contains(command.Options, o => o.Name == "--config-file");
         Assert.Contains(command.Options, o => o.Name == "--timeout-seconds");
         Assert.Contains(command.Options, o => o.Name == "--retry-delay-ms");
         Assert.Contains(command.Options, o => o.Name == "--connection-string");
@@ -162,6 +163,7 @@ public class CodeGenerationSampleTests
         var maxRetriesOption = AppConfigOptions.MaxRetriesOption;
         var outputFormatOption = AppConfigOptions.OutputFormatOption;
         var verboseOption = AppConfigOptions.VerboseOption;
+        var configFileOption = AppConfigOptions.ConfigFileOption;
         var timeoutSecondsOption = AppConfigOptions.TimeoutSecondsOption;
 
         // Assert
@@ -172,6 +174,7 @@ public class CodeGenerationSampleTests
         Assert.NotNull(maxRetriesOption);
         Assert.NotNull(outputFormatOption);
         Assert.NotNull(verboseOption);
+        Assert.NotNull(configFileOption);
         Assert.NotNull(timeoutSecondsOption);
 
         Assert.Equal("--endpoint", endpointOption.Name);
@@ -181,6 +184,7 @@ public class CodeGenerationSampleTests
         Assert.Equal("--max-retries", maxRetriesOption.Name);
         Assert.Equal("--output-format", outputFormatOption.Name);
         Assert.Equal("--verbose", verboseOption.Name);
+        Assert.Equal("--config-file", configFileOption.Name);
         Assert.Equal("--timeout-seconds", timeoutSecondsOption.Name);
 
         Assert.True(endpointOption.Required);
@@ -190,6 +194,7 @@ public class CodeGenerationSampleTests
         Assert.False(maxRetriesOption.Required);
         Assert.False(outputFormatOption.Required);
         Assert.False(verboseOption.Required);
+        Assert.False(configFileOption.Required);
         Assert.False(timeoutSecondsOption.Required);
     }
 }

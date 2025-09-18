@@ -13,6 +13,7 @@ internal static class SourceConstants
                                                     [Required] public string Endpoint { get; set; } = string.Empty;
                                                     public bool Diagnostics { get; set; } = true;
                                                     public int Retries { get; set; } = 3;
+                                                    public FileInfo ConfigFile { get; set; } = new FileInfo("C:\\dummy")
                                                 }
                                             
                                                 [CommandLineOptionsFor(typeof(AppConfig))]

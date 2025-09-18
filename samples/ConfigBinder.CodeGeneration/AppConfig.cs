@@ -10,11 +10,11 @@ namespace ConfigBinder.CodeGeneration;
 public sealed class AppConfig
 {
     [Required]
-    [Display(Description = "The service endpoint.")]
+    [Display(Description = "The Cosmos DB endpoint.")]
     public string Endpoint { get; set; } = string.Empty;
 
     [Display(Description = "The database name.")]
-    public string Database { get; set; } = "DefaultDb";
+    public string Database { get; set; } = "SubscriptionsDb";
 
     [Display(Description = "Do not persist changes.")]
     public bool DryRun { get; set; } = true;
@@ -26,21 +26,23 @@ public sealed class AppConfig
     [Range(1, 10, ErrorMessage = "Max retries must be between 1 and 10")]
     public int MaxRetries { get; set; } = 3;
 
-    [Display(Description = "The output format for results.")]
-    public OutputFormat OutputFormat { get; set; }
+    [Display(Description = "List of container names to process. Can be specified multiple times.")]
+    public string[] ContainerNames { get; set; } = [];
 
-    [Display(Description = "Enable verbose logging.")]
-    public bool Verbose { get; set; } = false;
+    [Display(Description = "List of partition key values to filter by.")]
+    public int[] PartitionKeys { get; set; } = [];
 
-    [Display(Description = "The connection timeout in seconds.")]
-    [Range(5, 300, ErrorMessage = "Timeout must be between 5 and 300 seconds")]
-    public int TimeoutSeconds { get; set; } = 30;
+    [Display(Description = "Configuration file path.")]
+    public FileInfo? ConfigFile { get; set; }
 
-    [Display(Description = "Optional retry delay in milliseconds.")]
-    public int? RetryDelayMs { get; set; }
+    [Display(Description = "Optional timeout in seconds.")]
+    public int? TimeoutSeconds { get; set; }
 
     [Display(Description = "Optional connection string.")]
     public string? ConnectionString { get; set; }
+
+    [Display(Description = "The output format for results.")]
+    public OutputFormat OutputFormat { get; set; }
 }
 
 [SuppressMessage("ReSharper", "UnusedMember.Global")]

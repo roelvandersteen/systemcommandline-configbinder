@@ -24,11 +24,18 @@ partial class AppConfigOptions
         DefaultValueFactory = _ => 3
     };
 
+    public static System.CommandLine.Option<FileInfo> ConfigFileOption { get; } = new("--config-file")
+    {
+        Description = "Sets the ConfigFile value.",
+        DefaultValueFactory = _ => new FileInfo("C:\\dummy")
+    };
+
     public static void AddOptionsTo(System.CommandLine.Command command)
     {
         command.Options.Add(EndpointOption);
         command.Options.Add(DiagnosticsOption);
         command.Options.Add(RetriesOption);
+        command.Options.Add(ConfigFileOption);
     }
 
     public static AppConfig Get(System.CommandLine.ParseResult parseResult)
@@ -37,7 +44,8 @@ partial class AppConfigOptions
         {
             Endpoint = parseResult.GetValue(EndpointOption) ?? string.Empty,
             Diagnostics = parseResult.GetValue(DiagnosticsOption),
-            Retries = parseResult.GetValue(RetriesOption)
+            Retries = parseResult.GetValue(RetriesOption),
+            ConfigFile = parseResult.GetValue(ConfigFileOption)
         };
     }
 }

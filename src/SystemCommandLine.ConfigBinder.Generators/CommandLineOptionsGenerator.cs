@@ -80,7 +80,7 @@ namespace SystemCommandLine.ConfigBinder.Generators;
             var required = IsRequired(propertySymbol);
 
             var description = GetDescription(propertySymbol);
-            var defaultExpression = DefaultExpressionExtractor.GetDefaultExpression(propertySymbol);
+            var defaultExpression = GetDefaultExpression(propertySymbol);
 
             sb.AppendLine($"    public static {optionTypeName} {optionFieldName} {{ get; }} = new(\"{optionName}\")");
             sb.AppendLine("    {");
@@ -149,6 +149,21 @@ namespace SystemCommandLine.ConfigBinder.Generators;
                 match.OptionsClassSymbol.Name,
                 ex.Message));
         }
+    }
+
+    /// <summary>
+    ///     Extracts and parses the default expression from a property symbol.
+    /// </summary>
+    /// <param name="prop">The property symbol to analyze.</param>
+    /// <returns>
+    ///     A string representation of the default expression, or null if no expression is found.
+    /// </returns>
+    private static string? GetDefaultExpression(IPropertySymbol prop)
+    {
+        SyntaxReference? syntaxReference = prop.DeclaringSyntaxReferences.FirstOrDefault();
+        var propertyDeclaration = syntaxReference?.GetSyntax() as PropertyDeclarationSyntax;
+        ExpressionSyntax? initializerValue = propertyDeclaration?.Initializer?.Value;
+        return initializerValue?.ToString();
     }
 
     private static string GetDescription(IPropertySymbol propertySymbol)

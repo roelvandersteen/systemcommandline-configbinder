@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using SystemCommandLine.ConfigBinder.Generators;
 
 namespace SystemCommandLine.ConfigBinder.Tests.Helpers;
 
@@ -55,14 +56,6 @@ internal static class GeneratorTestHelper
                  [CommandLineOptionsFor(typeof(AppConfig))]
                  public partial class AppConfigOptions { }
                  """;
-    }
-
-    public static GeneratorDriver InitializeGeneratorDriver()
-    {
-        Assembly generatorAssembly = LoadGeneratorAssembly();
-        Type generatorType = generatorAssembly.GetType("SystemCommandLine.ConfigBinder.Generators.CommandLineOptionsGenerator", true)!;
-        var generator = (IIncrementalGenerator)Activator.CreateInstance(generatorType)!;
-        return CSharpGeneratorDriver.Create(generator);
     }
 
     public static GeneratorResult RunGeneratorAndGetResult(GeneratorDriver driver, CSharpCompilation compilation)
