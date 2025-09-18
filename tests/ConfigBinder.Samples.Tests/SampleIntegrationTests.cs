@@ -36,16 +36,31 @@ public class SampleIntegrationTests
         var codeGenConfig = new AppConfig();
         var reflectionConfig = new Reflection.AppConfig();
 
-        // Act & Assert - Both should have Endpoint, Diagnostics/DryRun, and Retries/MaxRetries
+        // Act & Assert - Both should have common properties
         Assert.NotNull(codeGenConfig.Endpoint);
         Assert.NotNull(reflectionConfig.Endpoint);
 
+        Assert.NotNull(codeGenConfig.Database);
+        Assert.NotNull(reflectionConfig.Database);
+
         // Both have retry-related properties
-        Assert.True(codeGenConfig.Retries > 0);
+        Assert.True(codeGenConfig.MaxRetries > 0);
         Assert.True(reflectionConfig.MaxRetries > 0);
 
         // Both have boolean flags
-        Assert.IsType<bool>(codeGenConfig.Diagnostics);
+        Assert.IsType<bool>(codeGenConfig.DryRun);
         Assert.IsType<bool>(reflectionConfig.DryRun);
+
+        Assert.IsType<bool>(codeGenConfig.Verbose);
+
+        // Both have enum properties
+        Assert.IsType<LogLevel>(codeGenConfig.LogLevel);
+        Assert.IsType<Reflection.LogLevel>(reflectionConfig.LogLevel);
+
+        Assert.IsType<OutputFormat>(codeGenConfig.OutputFormat);
+        Assert.IsType<Reflection.OutputFormat>(reflectionConfig.OutputFormat);
+
+        // Both have timeout properties (CodeGen uses int, Reflection uses int? but we test the simple version)
+        Assert.IsType<int>(codeGenConfig.TimeoutSeconds);
     }
 }
