@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using SystemCommandLine.ConfigBinder.Generators;
+using SystemCommandLine.ConfigBinder.Tests.Constants;
 
 namespace SystemCommandLine.ConfigBinder.Tests;
 
@@ -274,5 +275,51 @@ public class GenerationSnapshotTests
 
         // Nullable string with empty default should NOT have DefaultValueFactory (trivial)
         AssertNoDefaultFactory(generated, "EmptyStringOption"); // string? = ""
+    }
+
+    [Fact]
+    public void Arrays_ShouldHandleDefaultsCorrectly()
+    {
+        // Arrange
+        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(SourceConstants.SourceWithArrayDefaults);
+        var compilation = CSharpCompilation.Create("Tests.Gen",
+            [syntaxTree],
+            GetReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        Assembly generatorAssembly = LoadGeneratorAssembly();
+        Type generatorType = generatorAssembly.GetType("SystemCommandLine.ConfigBinder.Generators.CommandLineOptionsGenerator", true)!;
+        var generator = (IIncrementalGenerator)Activator.CreateInstance(generatorType)!;
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
+
+        // Act
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
+
+        Assert.True(!diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error),
+            "Generator diagnostics: " + string.Join("\n", diagnostics.Select(d => d.ToString())));
+
+        GeneratorDriverRunResult runResult = driver.GetRunResult();
+        GeneratedSourceResult generatedSourceResult = runResult.Results.SelectMany(r => r.GeneratedSources)
+            .FirstOrDefault(s => s.HintName == "AppConfigOptions.CommandLineOptions.g.cs");
+
+        var generated = generatedSourceResult.SourceText?.ToString() ?? string.Empty;
+
+        // Assert - Arrays with null defaults should NOT have DefaultValueFactory (trivial)
+        AssertNoDefaultFactory(generated, "NullStringArrayOption");
+        AssertNoDefaultFactory(generated, "NullIntArrayOption");
+
+        // Arrays with empty defaults should NOT have DefaultValueFactory (trivial)
+        AssertNoDefaultFactory(generated, "EmptyStringArrayOption");
+        AssertNoDefaultFactory(generated, "EmptyIntArrayOption");
+        AssertNoDefaultFactory(generated, "EmptyStringArrayClassicOption");
+
+        // Arrays with meaningful defaults should HAVE DefaultValueFactory
+        AssertHasDefaultFactory(generated, "DefaultStringArrayOption", "[\"default\", \"values\"]");
+        AssertHasDefaultFactory(generated, "DefaultIntArrayOption", "[1, 2, 3]");
+        AssertHasDefaultFactory(generated, "SingleValueArrayOption", "[\"single\"]");
+
+        // Arrays with meaningful defaults using different syntax should HAVE DefaultValueFactory
+        AssertHasDefaultFactory(generated, "ClassicStringArrayOption", "new string[] { \"classic\", \"syntax\" }");
+        AssertHasDefaultFactory(generated, "ClassicIntArrayOption", "new int[] { 42, 99 }");
     }
 }

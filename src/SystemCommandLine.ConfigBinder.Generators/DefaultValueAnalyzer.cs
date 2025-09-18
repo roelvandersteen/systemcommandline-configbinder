@@ -49,6 +49,11 @@ internal static class DefaultValueAnalyzer
             return !defaultExpression.Equals("\"\"") && !defaultExpression.Equals("string.Empty");
         }
 
+        if (prop.Type.TypeKind == TypeKind.Array)
+        {
+            return !IsEmptyArrayExpression(defaultExpression);
+        }
+
         return true;
     }
 
@@ -63,7 +68,7 @@ internal static class DefaultValueAnalyzer
         var enumTypeName = enumType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
 
         // Checks for explicit default patterns in enum types.
-        // This method currently assumes that explicit enum values, such as "default", "None", or "Default",
+        // This method currently assumes that explicit enum values, such as "default", ".None", or ".Default",
         // are meaningful and should be treated as non-trivial. A more complex analysis would be required
         // to handle specific enum member references accurately.
         return defaultExpression == $"default({enumTypeName})" || defaultExpression == "default" || defaultExpression.EndsWith(".None") ||
@@ -116,6 +121,19 @@ internal static class DefaultValueAnalyzer
         }
     }
 
+    private static bool IsEmptyArrayExpression(string defaultExpression)
+    {
+        var normalized = defaultExpression.Replace(" ", "");
+
+        return normalized switch
+        {
+            "[]" => true,
+            "null" => true,
+            _ when normalized.StartsWith("new") && (normalized.EndsWith("[0]") || normalized.EndsWith("{}")) => true,
+            _ => false
+        };
+    }
+
     private static bool IsNullableGenericType(IPropertySymbol prop, out INamedTypeSymbol namedTypeSymbol)
     {
         if (prop.Type is INamedTypeSymbol { IsGenericType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } namedType)
@@ -135,9 +153,7 @@ internal static class DefaultValueAnalyzer
 
     private static bool TryParseAndCheckDefault<T>(string expression, TryParseDelegate<T> tryParse, T defaultValue) where T : IEquatable<T>
     {
-        // Remove common suffixes that don't affect the value
         var cleanExpression = expression.TrimEnd('f', 'F', 'd', 'D', 'm', 'M', 'L', 'U');
-
         return tryParse(cleanExpression, out T? result) && result.Equals(defaultValue);
     }
 
@@ -148,29 +164,12 @@ internal static class DefaultValueAnalyzer
             return false;
         }
 
-        if (defaultExpression == "'\\0'")
-        {
-            return true;
-        }
-
-        // For other char literals, extract the character
-        var charContent = defaultExpression.Substring(1, defaultExpression.Length - 2);
-        return charContent.Length switch
-        {
-            1 => charContent[0] == '\0',
-            2 when charContent[0] == '\\' => charContent[1] switch
-            {
-                '0' => true,
-                _ => false
-            },
-            _ => false
-        };
+        return defaultExpression is "'\\0'" or "'\0'";
     }
 
     private static bool TryParseDateTimeDefault(string defaultExpression)
     {
-        return defaultExpression == "DateTime.MinValue" || defaultExpression == "default(DateTime)" ||
-               defaultExpression == "default(System.DateTime)";
+        return defaultExpression is "DateTime.MinValue" or "default(DateTime)" or "default(System.DateTime)";
     }
 
     private delegate bool TryParseDelegate<T>(string input, out T result);

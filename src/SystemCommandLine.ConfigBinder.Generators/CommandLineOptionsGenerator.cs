@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -82,7 +81,7 @@ namespace SystemCommandLine.ConfigBinder.Generators;
             var required = IsRequired(propertySymbol);
 
             var description = GetDescription(propertySymbol);
-            var defaultExpression = GetDefaultExpression(propertySymbol);
+            var defaultExpression = DefaultExpressionExtractor.GetDefaultExpression(propertySymbol);
 
             sb.AppendLine($"    public static {optionTypeName} {optionFieldName} {{ get; }} = new(\"{optionName}\")");
             sb.AppendLine("    {");
@@ -153,26 +152,6 @@ namespace SystemCommandLine.ConfigBinder.Generators;
         }
     }
 
-    private static string? GetDefaultExpression(IPropertySymbol prop)
-    {
-        SyntaxReference? syntaxReference = prop.DeclaringSyntaxReferences.FirstOrDefault();
-        var propertyDeclaration = syntaxReference?.GetSyntax() as PropertyDeclarationSyntax;
-        ExpressionSyntax? initializerValue = propertyDeclaration?.Initializer?.Value;
-
-        if (initializerValue == null)
-        {
-            return null;
-        }
-
-        return initializerValue switch
-        {
-            LiteralExpressionSyntax literal => Literal(literal),
-            MemberAccessExpressionSyntax memberAccess => GetEnumMemberExpression(memberAccess, prop),
-            IdentifierNameSyntax identifier => GetIdentifierExpression(identifier, prop),
-            _ => null
-        };
-    }
-
     private static string GetDescription(IPropertySymbol propertySymbol)
     {
         foreach (var namedArgument in propertySymbol.GetAttributes()
@@ -186,30 +165,6 @@ namespace SystemCommandLine.ConfigBinder.Generators;
         }
 
         return $"Sets the {propertySymbol.Name} value.";
-    }
-
-    private static string? GetEnumMemberExpression(MemberAccessExpressionSyntax memberAccess, IPropertySymbol prop)
-    {
-        if (prop.Type.TypeKind != TypeKind.Enum)
-        {
-            return null;
-        }
-
-        var enumTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-        var memberName = memberAccess.Name.Identifier.ValueText;
-        return $"{enumTypeName}.{memberName}";
-    }
-
-    private static string? GetIdentifierExpression(IdentifierNameSyntax identifier, IPropertySymbol prop)
-    {
-        if (prop.Type.TypeKind != TypeKind.Enum)
-        {
-            return null;
-        }
-
-        var enumTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-        var memberName = identifier.Identifier.ValueText;
-        return $"{enumTypeName}.{memberName}";
     }
 
     private static Match? GetMatch(GeneratorSyntaxContext ctx)
@@ -248,18 +203,6 @@ namespace SystemCommandLine.ConfigBinder.Generators;
     private static bool IsRequired(IPropertySymbol propertySymbol)
     {
         return propertySymbol.GetAttributes().Any(a => a.AttributeClass?.Name is "Required" or "RequiredAttribute");
-    }
-
-    private static string Literal(object? obj)
-    {
-        return obj switch
-        {
-            null => "null",
-            string s => new StringBuilder().Append('"').Append(s.Replace(@"""", @"\""")).Append('"').ToString(),
-            bool b => b ? "true" : "false",
-            char c => new StringBuilder("'").Append(c == '\'' ? "\\'" : c).Append("'").ToString(),
-            _ => Convert.ToString(obj, CultureInfo.InvariantCulture) ?? "null"
-        };
     }
 
     private sealed record Match(INamedTypeSymbol OptionsClassSymbol, INamedTypeSymbol TargetConfigSymbol)
