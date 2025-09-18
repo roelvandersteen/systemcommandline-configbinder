@@ -1,4 +1,4 @@
-﻿namespace ConfigBinder.Demo;
+﻿namespace ConfigBinder.Reflection;
 
 public interface IAppProcessor
 {

@@ -1,6 +1,6 @@
 ﻿using Serilog;
 
-namespace ConfigBinder.Demo;
+namespace ConfigBinder.Reflection;
 
 public class AppProcessor(ILogger logger) : IAppProcessor
 {

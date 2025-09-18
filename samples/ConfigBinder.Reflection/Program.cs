@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using SystemCommandLine.ConfigBinder;
 
-namespace ConfigBinder.Demo;
+namespace ConfigBinder.Reflection;
 
 public static class Program
 {

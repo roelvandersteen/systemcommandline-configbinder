@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 
-namespace ConfigBinder.Demo;
+namespace ConfigBinder.Reflection;
 
 /// <summary>
 ///     Configuration class that contains all command line parameters.

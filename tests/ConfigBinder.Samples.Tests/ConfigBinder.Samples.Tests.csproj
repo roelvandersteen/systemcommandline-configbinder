@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\samples\ConfigBinder.Demo\ConfigBinder.Demo.csproj" />
+    <ProjectReference Include="..\..\samples\ConfigBinder.Reflection\ConfigBinder.Reflection.csproj" />
     <ProjectReference Include="..\..\samples\ConfigBinder.CodeGeneration\ConfigBinder.CodeGeneration.csproj" />
   </ItemGroup>
 

@@ -1,10 +1,10 @@
-using ConfigBinder.Demo;
+using ConfigBinder.Reflection;
 using Serilog;
 using Serilog.Core;
 
 namespace ConfigBinder.Samples.Tests;
 
-public class DemoSampleTests
+public class ReflectionSampleTests
 {
     [Theory, InlineData("https://example.com", "TestDb", true, LogLevel.Debug, 5),
      InlineData("https://test.com", "ProdDb", false, LogLevel.Warning, 1)]

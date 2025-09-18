@@ -34,11 +34,11 @@ Minimal API surface; no conditional features are currently framework-specific.
 
 ```text
 src/                          # Library source
-  SystemCommandLine.ConfigBinder/           # Core library and attributes
+  SystemCommandLine.ConfigBinder/            # Core library and attributes
   SystemCommandLine.ConfigBinder.Generators/ # C# source generators
 samples/                      # Demonstrations
-  ConfigBinder.Demo/                        # Reflection-based example
-  ConfigBinder.CodeGeneration/              # Source generation example
+  ConfigBinder.Reflection/                   # Reflection-based example
+  ConfigBinder.CodeGeneration/               # Source generation example
 tests/                        # Unit tests (xUnit)
   SystemCommandLine.ConfigBinder.Tests/
 ```
@@ -221,14 +221,14 @@ The `netstandard2.0` build uses older language constructs (no record structs / r
 The repository includes examples for both approaches:
 
 - `samples/ConfigBinder.CodeGeneration/` - source generation approach
-- `samples/ConfigBinder.Demo/` - runtime reflection approach
+- `samples/ConfigBinder.Reflection/` - runtime reflection approach
 
 ```pwsh
 # Source generation demo
 dotnet run --project samples/ConfigBinder.CodeGeneration -- --endpoint https://example/ --retries 5
 
 # Reflection demo
-dotnet run --project samples/ConfigBinder.Demo -- --endpoint https://example/ --retries 5 --names a --names b
+dotnet run --project samples/ConfigBinder.Reflection -- --endpoint https://example/ --retries 5 --names a --names b
 ```
 
 Everything after `--` is forwarded to the application.

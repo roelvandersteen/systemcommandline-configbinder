@@ -11,7 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{1A305366
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigBinder.CodeGeneration", "samples\ConfigBinder.CodeGeneration\ConfigBinder.CodeGeneration.csproj", "{8034E4E2-9BE6-8407-53F1-BA18BF1A8DEA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigBinder.Demo", "samples\ConfigBinder.Demo\ConfigBinder.Demo.csproj", "{22847023-26E0-E003-6642-81BAF05EA423}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigBinder.Reflection", "samples\ConfigBinder.Reflection\ConfigBinder.Reflection.csproj", "{22847023-26E0-E003-6642-81BAF05EA423}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SystemCommandLine.ConfigBinder", "src\SystemCommandLine.ConfigBinder\SystemCommandLine.ConfigBinder.csproj", "{1F441886-04A4-34D9-2015-2A41A1EE5C89}"
 EndProject
