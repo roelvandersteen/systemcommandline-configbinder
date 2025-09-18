@@ -192,6 +192,40 @@ This prevents polluting help text with meaningless negative switches.
 - Missing required options surface as parser errors before your handler runs.
 - Additional DataAnnotations (e.g. `[Range]`, `[MaxLength]`) are aggregated after binding; failures raise a `ValidationException`.
 
+## Type Support
+
+Both the source generation and reflection-based approaches support a variety of .NET types. However, type support may vary between the two approaches and compared to what `System.CommandLine` natively supports.
+
+### Currently Supported Types
+
+| Type Category           | Examples                                     | Source Generation | Reflection | Notes                               |
+| :---------------------- | :------------------------------------------- | :---------------: | :--------: | :---------------------------------- |
+| **Primitives**          | `int`, `bool`, `string`, `double`, `decimal` |        yes        |    yes     | Full support                        |
+| **Nullable Primitives** | `int?`, `bool?`, `string?`                   |        yes        |    yes     | Null handling included              |
+| **Enums**               | Custom enum types                            |        yes        |    yes     | Automatic string parsing            |
+| **Arrays**              | `string[]`, `int[]`                          |        yes        |    yes     | Repeated option support             |
+| **File System**         | `FileInfo`                                   |        yes        |    yes     | Recently added to source generation |
+
+Other types have not been tested.
+
+### Known Limitations
+
+- **Reference Types**: The reflection-based binder may not support all reference types that `System.CommandLine` natively handles
+- **Complex Types**: Custom classes, records, and structs are not currently supported
+- **Collections**: Only arrays are supported; `List<T>`, `IEnumerable<T>`, etc. are not implemented
+
+### Planned Type Support
+
+The following types are being considered for future implementation:
+
+- `DirectoryInfo` - Directory path handling
+- `Uri` - URL/URI parsing
+- `TimeSpan` - Duration parsing
+- `DateTime`/`DateTimeOffset` - Date/time parsing
+- `Guid` - GUID parsing
+
+> **Note**: `System.CommandLine` itself supports additional types beyond what either binder currently implements. The goal is to expand type support while maintaining the library's simplicity and performance characteristics.
+
 ## Advanced Notes
 
 ### Performance
@@ -250,6 +284,23 @@ To run tests:
 ```pwsh
 dotnet test
 ```
+
+## Development Status & Roadmap
+
+### Recently Completed
+
+- **FileInfo Support**: Added full support for `FileInfo` properties in source generation
+- **Test Infrastructure**: Comprehensive test refactoring with ClassData pattern for maintainability
+- **Code Organization**: Extracted helper classes and improved generator architecture
+
+### Current Todo Items
+
+- [ ] **Extended Reference Type Support**: Evaluate and implement support for additional reference types
+  - `DirectoryInfo` - Directory path handling
+  - `Uri` - URL/URI parsing
+  - `TimeSpan`, `DateTime`, `Guid` - Common value types
+- [ ] **Reflection Parity**: Ensure reflection-based binder supports same types as source generation
+- [ ] **System.CommandLine Alignment**: Investigate and align with all types natively supported by System.CommandLine
 
 ## Development
 
